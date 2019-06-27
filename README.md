@@ -6,8 +6,9 @@ Steps:
 2. python main_prog.py  
 
 Sequence Diagram:  
-Enter in the code below [here](https://sequencediagram.org/)  
+Enter in the code below -> [here](https://sequencediagram.org/)  
 
+```
 title main_prog.py  
   
 note over client:Not parallel  
@@ -19,3 +20,4 @@ worker->worker:iterate counter
 end  
   
 worker-->broker:Send kill command  
+```

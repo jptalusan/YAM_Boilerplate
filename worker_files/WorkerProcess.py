@@ -1,5 +1,5 @@
 import zmq
-from .WorkerHandler import WorkerHandler, PingHandler
+from .WorkerHandler import WorkerHandler, ManiHandler
 
 import sys
 sys.path.append('..')
@@ -19,7 +19,7 @@ class WorkerProcess(zp.ZmqProcess):
 
         self.backend_stream = None
 
-        self.ping_handler = PingHandler()
+        self.mani_handler = ManiHandler()
 
     def setup(self):
         """Sets up PyZMQ and creates all streams."""
@@ -31,7 +31,7 @@ class WorkerProcess(zp.ZmqProcess):
 
         # Attach handlers to the streams
         self.backend_stream.on_recv(WorkerHandler(self.backend_stream, 
-                                                  self.stop, self.ping_handler))
+                                                  self.stop, self.mani_handler))
 
     def run(self):
         """Sets up everything and starts the event loop."""

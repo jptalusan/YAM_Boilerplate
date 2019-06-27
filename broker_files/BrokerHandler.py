@@ -27,7 +27,7 @@ class BrokerHandler(mh.RouterMessageHandler):
 
     def plzdiekthxbye(self, *data):
         print("Received plzdiekthxbye")
-        """Just calls :meth:`PongProc.stop`."""
+        """Just calls :meth:`BrokerProcess.stop`."""
         self._stop()
 
 

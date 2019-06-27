@@ -5,43 +5,44 @@ from base import MessageHandlers as mh
 
 class WorkerHandler(mh.DealerMessageHandler):
     """Handels messages arrvinge at the PongProc’s REP stream."""
-    def __init__(self, backend_stream, stop, ping_handler):
+    # Debug
+    # Class Variables
+    received_counter = 0
+
+    def __init__(self, backend_stream, stop, mani_handler):
         # json_load is the element index of the msg_type
         super().__init__(json_load=0)
+        # Instance variables
         self._backend_stream = backend_stream
         self._stop = stop
-        self._ping_handler = ping_handler
-        
-        # Debug
-        self.received_counter = 0
+        self._mani_handler = mani_handler
+        WorkerHandler.received_counter = 0
 
     def mani(self, *data):
-        print("Received mani({})".format(data))
         sender = decode(data[0])
         data_arr = data[1]
-        print(self.received_counter)
-        if self.received_counter == 4:
+        c = self._mani_handler.make_mani(WorkerHandler.received_counter, data_arr)
+        print(c)
+        if c == 4:
             print("Sending kill code...")
             self._backend_stream.send_multipart([b'plzdiekthxbye'])
             self._stop()
         
-        self.received_counter += 1
-        
     def ping(self, data):
         """Send back a pong."""
         rep = self._ping_handler.make_pong(data)
-        self._rep_stream.send_json(rep)
+        self._backend_stream.send_json(rep)
 
     def plzdiekthxbye(self, *data):
-        """Just calls :meth:`PongProc.stop`."""
+        """Just calls :meth:`WorkerProcess.stop`."""
         self._stop()
 
 
 # TODO: Create a handler for each type of message for the broker
-class PingHandler(object):
+class ManiHandler(object):
 
-    def make_pong(self, num_pings):
+    def make_mani(self, counter, *data_arr):
         """Creates and returns a pong message."""
-        print('Pong got request number %s' % num_pings)
-
-        return ['pong', num_pings]
+        print("Make_mani got {}".format(data_arr))
+        WorkerHandler.received_counter += 1
+        return WorkerHandler.received_counter

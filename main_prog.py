@@ -29,10 +29,10 @@ if __name__ == '__main__':
     broker = BrokerProcess(bind_addr=('*', port), bind_addr2=('*', port2), identity='Broker')
     broker.start()
 
-    worker = WorkerProcess(bind_addr=(host, port2), identity='Worker-000')
-    worker.start()
+    WorkerProcess(bind_addr=(host, port2), identity='Worker-000').start()
+    # WorkerProcess(bind_addr=(host, port2), identity='Worker-001').start()
+    
 
     Process(target=client, args=()).start()
 
     broker.join()
-    worker.join()

@@ -1,0 +1,9 @@
+zmq
+influxdb
+blosc
+pandas
+numpy
+scipy
+spectrum
+tornado
+sklearn

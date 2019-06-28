@@ -3,7 +3,7 @@ from .BrokerHandler import BrokerHandler, PingHandler
 
 import sys
 sys.path.append('..')
-from base import ZmqProcess as zp
+from base_stream import ZmqProcess as zp
 
 # TODO: Change names
 class BrokerProcess(zp.ZmqProcess):

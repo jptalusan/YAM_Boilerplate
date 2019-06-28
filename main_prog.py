@@ -1,38 +1,34 @@
-from broker_files.BrokerProcess import *
-from worker_files.WorkerProcess import *
 import zmq
-from utils.Utils import *
 from multiprocessing import Process
 
-host = '127.0.0.1'
-port = 5678
-port2 = 5679
+host = 'localhost'
+port = 7000
 
+decode = lambda x: x.decode('utf-8')
+encode = lambda x: x.encode('ascii')
+
+EXTRACT_QUERY= 'extract_query'
+EXTRACT_TASK = 'extract_task'
+EXTRACT_RESPONSE = 'extract_response'
+
+WORKER_READY = 'worker_ready'
 
 def client():
     """Sends ping requests and waits for replies."""
     context = zmq.Context()
-    sock = context.socket(zmq.DEALER)
-    sock.identity = (u"Client-%s" % str(0).zfill(3)).encode('ascii')
-    sock.connect('tcp://%s:%s' % (host, port))
+    broker_sock = context.socket(zmq.DEALER)
+    broker_sock.identity = (u"Client-%s" % str(0).zfill(3)).encode('ascii')
+    broker_sock.connect('tcp://%s:%s' % (host, port))
 
-    for i in range(5):
-        sock.send_multipart([b'hopia', bytes([i]), b'HEY'])
-
-        # msg = sock.recv_multipart()
-        # print(msg)
-
-    # sock.send_multipart([b'plzdiekthxbye'])
-    # print("Sent kill code.")
+    broker_sock.send_multipart([encode(EXTRACT_QUERY), b'HEY'])
+    try:
+        while True:
+            msg = broker_sock.recv_multipart()
+            print(msg)
+            if msg:
+                break
+    except zmq.ContextTerminated:
+      return
 
 if __name__ == '__main__':
-    broker = BrokerProcess(bind_addr=('*', port), bind_addr2=('*', port2), identity='Broker')
-    broker.start()
-
-    WorkerProcess(bind_addr=(host, port2), identity='Worker-000').start()
-    # WorkerProcess(bind_addr=(host, port2), identity='Worker-001').start()
-    
-
     Process(target=client, args=()).start()
-
-    broker.join()

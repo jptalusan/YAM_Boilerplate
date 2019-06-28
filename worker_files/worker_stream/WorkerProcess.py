@@ -1,9 +1,9 @@
 import zmq
-from .WorkerHandler import WorkerHandler, ManiHandler
+from .WorkerHandler import WorkerHandler, ManiHandler, ExtractHandler
 
 import sys
 sys.path.append('..')
-from base import ZmqProcess as zp
+from base_stream import ZmqProcess as zp
 
 class WorkerProcess(zp.ZmqProcess):
     """
@@ -20,6 +20,7 @@ class WorkerProcess(zp.ZmqProcess):
         self.backend_stream = None
 
         self.mani_handler = ManiHandler()
+        self.extract_handler = ExtractHandler()
 
     def setup(self):
         """Sets up PyZMQ and creates all streams."""
@@ -31,7 +32,10 @@ class WorkerProcess(zp.ZmqProcess):
 
         # Attach handlers to the streams
         self.backend_stream.on_recv(WorkerHandler(self.backend_stream, 
-                                                  self.stop, self.mani_handler))
+                                                  self.stop, 
+                                                #   List of custom handlers here...
+                                                  self.mani_handler, 
+                                                  self.extract_handler))
 
     def run(self):
         """Sets up everything and starts the event loop."""

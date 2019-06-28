@@ -1,5 +1,5 @@
 import zmq
-from .BrokerHandler import BrokerHandler, PingHandler
+from .BrokerHandler import BrokerHandler
 
 import sys
 sys.path.append('..')
@@ -25,8 +25,6 @@ class BrokerProcess(zp.ZmqProcess):
         self.frontend_stream = None
         self.backend_stream = None
 
-        self.ping_handler = PingHandler()
-
     def setup(self):
         """Sets up PyZMQ and creates all streams."""
         super().setup()
@@ -39,11 +37,11 @@ class BrokerProcess(zp.ZmqProcess):
 
         # Attach handlers to the streams
         self.frontend_stream.on_recv(BrokerHandler(self.frontend_stream, self.backend_stream, 
-                                                   self.stop, self.ping_handler))
+                                                   self.stop))
 
         # Attach handlers to the streams
         self.backend_stream.on_recv(BrokerHandler(self.frontend_stream, self.backend_stream, 
-                                                  self.stop, self.ping_handler))
+                                                  self.stop))
 
     def run(self):
         """Sets up everything and starts the event loop."""

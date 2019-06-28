@@ -2,6 +2,7 @@ from base_stream import MessageHandlers as mh
 from utils.constants import *
 from utils.Utils import *
 import sys
+import json
 sys.path.append('..')
 
 
@@ -13,13 +14,12 @@ class BrokerHandler(mh.RouterMessageHandler):
     # TODO: Make this a class, similar to the old one
     some_broker_worker_queue = []
 
-    def __init__(self, frontend_stream, backend_stream, stop, ping_handler):
+    def __init__(self, frontend_stream, backend_stream, stop):
         print("BrokerHandler.__init__()")
         super().__init__(json_load=1)
         self._frontend_stream = frontend_stream
         self._backend_stream = backend_stream
         self._stop = stop
-        self._ping_handler = ping_handler
 
         # TODO: This is only for testing
         self.client = ''
@@ -32,8 +32,10 @@ class BrokerHandler(mh.RouterMessageHandler):
 
     def extract_query(self, *data):
         self.client = decode(data[0])
+        query = decode(data[1])
+        query = json.loads(query)
 
-        print("Received Extract query from {}".format(self.client))
+        print("Received Extract {} from {}".format(query['other'], query['sender']))
         BrokerHandler.some_broker_task_queue.append(EXTRACT_QUERY)
         self.send_task_to_worker()
         # TODO: Probably needs some information on available workers...
@@ -74,11 +76,3 @@ class BrokerHandler(mh.RouterMessageHandler):
         print("Notifying {}".format(self.client))
         message = data[0]
         self._frontend_stream.send_multipart([b'Client-000', b'Hello', message])
-
-class PingHandler(object):
-
-    def make_pong(self, num_pings):
-        """Creates and returns a pong message."""
-        print('Pong got request number %s' % num_pings)
-
-        return ['pong', num_pings]

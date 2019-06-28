@@ -1,9 +1,17 @@
 import sys
+import time
+import os
+
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+import numpy as np
+
 sys.path.append('..')
 from utils.Utils import *
 from utils.constants import *
 from base_stream import MessageHandlers as mh
-import time
+from feature_extraction import database_specific
+
 
 class WorkerHandler(mh.DealerMessageHandler):
     """Handels messages arrvinge at the PongProc’s REP stream."""
@@ -12,7 +20,7 @@ class WorkerHandler(mh.DealerMessageHandler):
     received_counter = 0
     some_task_queue = []
 
-    def __init__(self, backend_stream, stop, mani_handler, extract_handler):
+    def __init__(self, backend_stream, stop, mani_handler, extract_handler, train_handler):
         # json_load is the element index of the msg_type
         super().__init__(json_load=0)
         # Instance variables
@@ -20,27 +28,13 @@ class WorkerHandler(mh.DealerMessageHandler):
         self._stop = stop
         self._mani_handler = mani_handler
         self._extract_handler = extract_handler
+        self._train_handler = train_handler
 
         WorkerHandler.received_counter = 0
         WorkerHandler.some_task_queue = []
 
         print("WorkerHandler:__init__")
         self._backend_stream.send_multipart([encode(WORKER_READY)])
-
-    def mani(self, *data):
-        sender = decode(data[0])
-        data_arr = data[1]
-        c = self._mani_handler.make_mani(WorkerHandler.received_counter, data_arr)
-        print(c)
-        if c == 4:
-            print("Sending kill code...")
-            self._backend_stream.send_multipart([b'plzdiekthxbye'])
-            self._stop()
-        
-    def ping(self, data):
-        """Send back a pong."""
-        rep = self._ping_handler.make_pong(data)
-        self._backend_stream.send_json(rep)
 
     def plzdiekthxbye(self, *data):
         print("Stopping:WorkerProcess")
@@ -55,10 +49,12 @@ class WorkerHandler(mh.DealerMessageHandler):
         data_arr = decode(data[1])
         print("Received {}:{} from Broker".format(EXTRACT_TASK, data_arr))
         extracted_data = self._extract_handler.extract_features(data[1:])
-        print("Extracted: {}".format(extracted_data))
+        print("Extracted: {}".format(extracted_data.shape))
+
+        clf = self._train_handler.train_model(extracted_data)
+        print(clf)
 
         self._backend_stream.send_multipart([encode(EXTRACT_RESPONSE), b'Done extracting...'])
-
 
 # TODO: Create a handler for each type of message for the broker
 class ManiHandler(object):
@@ -73,6 +69,39 @@ class ExtractHandler(object):
     def extract_features(self, *data):
         d = data[0]
         print("Doing some extracting on {}.".format(d[0]))
-        time.sleep(1)
+
+        nout = self.get_data_from_DB('1', 'acc', 128)
         print("Done extracting...")
-        return int(d[0]) + 1
+
+        if nout.size != 0:
+            label_col = np.full((nout.shape[0], 1), int('1'))
+            nout = np.append(nout, label_col, axis=1)
+
+        return nout
+
+    def get_data_from_DB(self, label, database, limit):
+        INFLUX_HOST = os.environ['INFLUX_HOST']
+        INFLUX_PORT = os.environ['INFLUX_PORT']
+        INFLUX_DB = os.environ['INFLUX_DB']
+        dbs = database_specific.Database_Specific(INFLUX_HOST, INFLUX_PORT, INFLUX_DB)
+        if database == 'both':
+            nout = dbs.get_rows_with_label_both(int(label), limit=limit)
+            # print("Nout {}:{}".format(database, nout.shape))
+            return nout
+        elif database == 'acc' or database == 'gyro':
+            nout = dbs.get_rows_with_label(int(label), database, limit=limit)
+            return nout
+        else:
+            return None
+
+class TrainHandler(object):
+    def train_model(self, extracted_data):
+        X = extracted_data[:,:-1]
+        y = extracted_data[:,-1:]
+        print(y)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=100)
+        clf = RandomForestClassifier(n_estimators=20, random_state=100)  
+        clf.fit(X_train, y_train.ravel())
+        y_pred = clf.predict(X_test)
+        # acc = accuracy_score(y_test, y_pred)
+        return clf

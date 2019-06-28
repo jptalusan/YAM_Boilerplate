@@ -1,10 +1,9 @@
 import zmq
-from .WorkerHandler import WorkerHandler, ManiHandler, ExtractHandler
+from .WorkerHandler import WorkerHandler, ManiHandler, ExtractHandler, TrainHandler
 
 import sys
 sys.path.append('..')
 from base_stream import ZmqProcess as zp
-
 class WorkerProcess(zp.ZmqProcess):
     """
     Main processes for the Ponger. It handles ping requests and sends back
@@ -21,6 +20,7 @@ class WorkerProcess(zp.ZmqProcess):
 
         self.mani_handler = ManiHandler()
         self.extract_handler = ExtractHandler()
+        self.train_handler = TrainHandler()
 
     def setup(self):
         """Sets up PyZMQ and creates all streams."""
@@ -35,7 +35,8 @@ class WorkerProcess(zp.ZmqProcess):
                                                   self.stop, 
                                                 #   List of custom handlers here...
                                                   self.mani_handler, 
-                                                  self.extract_handler))
+                                                  self.extract_handler,
+                                                  self.train_handler))
 
     def run(self):
         """Sets up everything and starts the event loop."""

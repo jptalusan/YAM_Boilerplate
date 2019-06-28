@@ -11,7 +11,7 @@ class RouterMessageHandler(object):
         self._json_load = json_load
 
     def __call__(self, msg):
-        if __debug__ == DEBUG:
+        if __debug__ == 0:
             print("RouterMessageHandler: __call__: ", msg)
         """
         Gets called when a messages is received by the stream this handlers is

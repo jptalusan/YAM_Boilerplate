@@ -1,4 +1,5 @@
 import zmq
+import json
 from multiprocessing import Process
 
 host = 'localhost'
@@ -20,7 +21,12 @@ def client():
     broker_sock.identity = (u"Client-%s" % str(0).zfill(3)).encode('ascii')
     broker_sock.connect('tcp://%s:%s' % (host, port))
 
-    broker_sock.send_multipart([encode(EXTRACT_QUERY), b'HEY'])
+    dict_req = {}
+    dict_req['sender'] = broker_sock.identity.decode('ascii')
+    dict_req['other'] = 'I AM CLIENT'
+    dict_req = json.dumps(dict_req)
+
+    broker_sock.send_multipart([encode(EXTRACT_QUERY), encode(dict_req)])
     try:
         while True:
             msg = broker_sock.recv_multipart()

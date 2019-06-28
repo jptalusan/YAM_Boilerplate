@@ -11,8 +11,6 @@ class RouterMessageHandler(object):
         self._json_load = json_load
 
     def __call__(self, msg):
-        if __debug__ == 0:
-            print("RouterMessageHandler: __call__: ", msg)
         """
         Gets called when a messages is received by the stream this handlers is
         registered at. *msg* is a list as return by
@@ -36,8 +34,6 @@ class DealerMessageHandler(object):
         self._json_load = json_load
 
     def __call__(self, msg):
-        if __debug__ == DEBUG:
-            print("DealerMessageHandler: __call__: ", msg)
         """
         Gets called when a messages is received by the stream this handlers is
         registered at. *msg* is a list as return by
@@ -69,7 +65,6 @@ class RequestHandler(object):
         self._json_load = json_load
 
     def __call__(self, msg):
-        print("__call__: ", msg)
         """
         Gets called when a messages is received by the stream this handlers is
         registered at. *msg* is a list as return by

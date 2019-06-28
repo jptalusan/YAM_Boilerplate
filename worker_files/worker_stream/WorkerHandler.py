@@ -42,19 +42,17 @@ class WorkerHandler(mh.DealerMessageHandler):
         self._stop()
 
     def extract_task(self, *data):
-        print(data)
-        print(type(data))
-        print(type(data[1]))
         sender = decode(data[0])
         data_arr = decode(data[1])
         print("Received {}:{} from Broker".format(EXTRACT_TASK, data_arr))
+
         extracted_data = self._extract_handler.extract_features(data[1:])
         print("Extracted: {}".format(extracted_data.shape))
 
-        clf = self._train_handler.train_model(extracted_data)
-        print(clf)
+        # clf = self._train_handler.train_model(extracted_data)
+        # print(clf)
 
-        self._backend_stream.send_multipart([encode(EXTRACT_RESPONSE), b'Done extracting...'])
+        self._backend_stream.send_multipart([encode(EXTRACT_RESPONSE), b'Done extracting...', zip_and_pickle(extracted_data)])
 
 # TODO: Create a handler for each type of message for the broker
 class ManiHandler(object):

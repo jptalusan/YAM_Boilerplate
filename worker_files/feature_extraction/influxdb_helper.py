@@ -31,8 +31,6 @@ class InfluxDB_Helper:
         self.df_client.write_points(df, meas_name, time_precision=time_precision, tags=tags)
         
     def get_db_meas_df(self, db_name, meas_name):
-    #     client = DataFrameClient(influxDB_ip, 8086, "rsu_id_location_new")
-    #     result = client.query('select * from "rsu_id_location_new"."autogen"."rsu_locations";')
         self.df_client.switch_database(db_name)
         query = 'select * from "{0}"."autogen"."{1}";'.format(db_name, meas_name)
         result = self.df_client.query(query)

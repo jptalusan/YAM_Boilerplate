@@ -1,12 +1,14 @@
 import zmq
 import json
 from multiprocessing import Process
+import time
 
 host = 'localhost'
 port = 7000
 
 decode = lambda x: x.decode('utf-8')
 encode = lambda x: x.encode('ascii')
+current_seconds_time = lambda: int(round(time.time()))
 
 EXTRACT_QUERY= 'extract_query'
 EXTRACT_TASK = 'extract_task'
@@ -22,8 +24,13 @@ def client():
     broker_sock.connect('tcp://%s:%s' % (host, port))
 
     dict_req = {}
-    dict_req['sender'] = broker_sock.identity.decode('ascii')
-    dict_req['other'] = 'I AM CLIENT'
+    dict_req['database'] = 'ACC'
+    dict_req['model'] = 'RF'
+    dict_req['train_method'] = 'DISTRIBUTED'
+    dict_req['distribution_method'] = 'RND'
+    dict_req['queried_time'] = current_seconds_time()
+    dict_req['rows'] = 128
+    print(type(dict_req))
     dict_req = json.dumps(dict_req)
 
     broker_sock.send_multipart([encode(EXTRACT_QUERY), encode(dict_req)])

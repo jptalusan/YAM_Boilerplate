@@ -13,6 +13,32 @@ services:
       - hosts.env
       - constants.env
 
+  worker_001:
+    build: ./worker_files/
+    volumes: 
+      - ./worker_files/:/usr/src/app
+    environment: 
+      - PYTHONUNBUFFERED=1
+      - WORKER_ID=0001
+    depends_on: 
+      - broker
+    env_file: 
+      - hosts.env
+      - constants.env
+
+  worker_002:
+    build: ./worker_files/
+    volumes: 
+      - ./worker_files/:/usr/src/app
+    environment: 
+      - PYTHONUNBUFFERED=1
+      - WORKER_ID=0002
+    depends_on: 
+      - broker
+    env_file: 
+      - hosts.env
+      - constants.env
+
   broker:
     build: ./broker_files/
     ports:

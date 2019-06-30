@@ -31,7 +31,8 @@ class WorkerProcess(zp.ZmqProcess):
         self.backend_stream, _ = self.stream(zmq.DEALER, self.bind_addr, bind=False, identity=self.identity)
 
         # Attach handlers to the streams
-        self.backend_stream.on_recv(WorkerHandler(self.backend_stream, 
+        self.backend_stream.on_recv(WorkerHandler(self.identity,
+                                                  self.backend_stream, 
                                                   self.stop, 
                                                 #   List of custom handlers here...
                                                   self.mani_handler, 

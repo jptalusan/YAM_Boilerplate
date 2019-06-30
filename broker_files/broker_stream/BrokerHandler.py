@@ -3,13 +3,17 @@ from utils.constants import *
 from utils.Utils import *
 from classes.WorkerQueue import WorkerQueue
 from classes.Worker import Worker
+from classes.Task import Task
 import sys
 import json
 import random
-
+# import panda as pd
 import numpy as np
+import pickle
 
 sys.path.append('..')
+
+NUMBER_OF_TRAINERS = 3
 
 # TODO: Should I separate functions not entirely related to brokerhandler? (Probably)
 # Like what i did with the workerhandler
@@ -33,6 +37,9 @@ class BrokerHandler(mh.RouterMessageHandler):
         self.client = ''
 
         self.aggregated_data = []
+
+        # TODO: STOP GAP to implement a workflow, change in future
+        self.last_response_received = ''
         BrokerHandler.some_broker_task_queue = []
 
     def plzdiekthxbye(self, *data):
@@ -40,21 +47,36 @@ class BrokerHandler(mh.RouterMessageHandler):
         """Just calls :meth:`BrokerProcess.stop`."""
         self._stop()
 
+    # Start DEBUG
     def extract_query(self, *data):
-        self.client = decode(data[0])
-        query = decode(data[1])
-        query = json.loads(query)
+        sender = decode(data[0])
+        self.client = sender
 
-        new_tasks = self.extract_query_json_and_generate_tasks(query)
+        file = open('test_data/tda.pkl',"rb")
+        tda_loaded = pickle.load(file)
+        print(tda_loaded.shape)
 
-        # For now we assume that only one query at a time, since we are only measuring speeds and overhead
-        BrokerHandler.some_broker_task_queue.clear()
-        BrokerHandler.some_broker_task_queue.extend(new_tasks)
+        # some_test_data = tda_loaded
+        self._backend_stream.send_multipart([b'Worker-0000', encode(TRAIN_TASK), zip_and_pickle(tda_loaded)])
+    # End DEBUG
+    
+    # def extract_query(self, *data):
+    #     self.last_response_received = EXTRACT_QUERY
+    #     self.client = decode(data[0])
+    #     query = decode(data[1])
+    #     query = json.loads(query)
 
-        self.send_task_to_worker()
-        # TODO: Probably needs some information on available workers...
+    #     # new_tasks = self.extract_query_json_and_generate_tasks(query)
+    #     new_tasks = self.generate_tasks(EXTRACT_TASK, query)
+    #     # For now we assume that only one query at a time, since we are only measuring speeds and overhead
+    #     BrokerHandler.some_broker_task_queue.clear()
+    #     BrokerHandler.some_broker_task_queue.extend(new_tasks)
+
+    #     self.send_task_to_worker()
+    #     # TODO: Probably needs some information on available workers...
 
     def extract_response(self, *data):
+        self.last_response_received = EXTRACT_RESPONSE
         sender = decode(data[0])
         msg = decode(data[1])
         array = unpickle_and_unzip(data[2])
@@ -68,11 +90,70 @@ class BrokerHandler(mh.RouterMessageHandler):
         BrokerHandler.workers.ready(Worker(worker_addr, b'', b''))
         self.send_task_to_worker()
 
+    def train_response(self, *data):
+        sender = decode(data[0])
+        message = decode(data[1])
+        print("{} has finished training.".format(sender))
+
     def worker_ready(self, *data):
         print("A worker is ready:{}".format(data))
         worker_addr = data[0]
         BrokerHandler.workers.ready(Worker(worker_addr, b'', b''))
         self.send_task_to_worker()
+
+    def classify_query(self, *data):
+        sender = decode(data[0])
+        self.client = sender
+
+        file = open('test_data/tda.pkl',"rb")
+        tda_loaded = pickle.load(file)
+        print(tda_loaded.shape)
+
+        # Start DEBUG
+        X = tda_loaded[:,:-1]
+        y = tda_loaded[:,-1:]
+        print("Training data received: {}".format(extracted_data.shape))
+        # print(y)
+
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=100)
+        test_data_arr = np.append(X_test, y_test, axis=1)
+        # End DEBUG
+
+        # some_test_data = tda_loaded
+        self._backend_stream.send_multipart([b'Worker-0000', encode(CLASSIFY_TASK), zip_and_pickle(test_data_arr)])
+        # For testing mainly, read data from test_data
+        # send for classification and get array of decision tree predictions
+
+        # input_data_dir = 'test_data/'
+        # filename = 'X_test.txt'
+        # path = input_data_dir + filename
+        # delimiter = " "
+        # df_X = pd.read_csv(path, 
+        #                 header=None, 
+        #                 delimiter=delimiter, 
+        #                 dtype=np.float64)
+
+        # print(df_X.values.shape)
+        # print(df_X.shape)
+        # print(type(df_X.values))
+
+        # input_data_dir = 'test_data/'
+        # filename = 'y_test.txt'
+        # path = input_data_dir + filename
+        # delimiter = " "
+        # df_y = pd.read_csv(path, 
+        #                 header=None, 
+        #                 delimiter=delimiter, 
+        #                 dtype=np.int)
+
+        # df_y.head()
+        # test_data_arr = np.append(df_X.values, df_y.values, axis=1)
+        # test_data_arr
+        # print(test_data_arr.shape)
+
+    def classify_response(self, *data):
+        self._frontend_stream.send_multipart(b"Client-000", b"Done classifying")
+        pass
 
     # This is a random task assignment, but it is load balanced because of a worker queue
     def send_task_to_worker(self):
@@ -81,23 +162,54 @@ class BrokerHandler(mh.RouterMessageHandler):
         if len(BrokerHandler.some_broker_task_queue) > 0:
             while len(BrokerHandler.some_broker_task_queue) > 0:
                 if len(BrokerHandler.workers.queue) > 0:
+                    # TODO: Make a TASK class which includes a TASK FLAG then just create abstraction that sends the whole thing
                     task = BrokerHandler.some_broker_task_queue.pop()
                     addr = BrokerHandler.workers.next()
-
-                    # TODO: Serialize
-                    self._backend_stream.send_multipart(
-                        [encode(addr), encode(EXTRACT_TASK), encode(task)])
+                    task.send(addr)
                 else:
                     break
+        # After extracting, you aggregate and shuffle the data, then split it into the number of trainers you want
+        # This will start becoming messy
+        # TODO: Put these in a function
         else:
+            # TODO: Check if all workers are available (just to know if all arrived)
+            if len(BrokerHandler.workers.queue) != NUMBER_OF_TRAINERS:
+                return False
+
             print("No tasks available...")
-            print(self.aggregate_data(self.aggregated_data).shape)
+            # Have to have some flag here that prevents it from going in a  loop,
+            # it should have some flow EXTRACT -> TRAIN -> CLASSIFY
+            # TODO: Stop gap. in conjunction with the last_response_received flag
+
+            if self.last_response_received == EXTRACT_RESPONSE:
+                aggregated_extracted_data = self.aggregate_data(self.aggregated_data)
+
+                shuffled_split_data = self.shuffle_and_split_aggregated_extracted_data(aggregated_extracted_data)
+                generated_train_tasks = self.generate_train_tasks(shuffled_split_data)
+                
+                BrokerHandler.some_broker_task_queue.extend(generated_train_tasks)
+                self.send_task_to_worker()
+            else:
+                return False #?
+                    
 
     def notify_client(self, *data):
         print("Notifying {}".format(self.client))
         message = data[0]
         self._frontend_stream.send_multipart([b'Client-000', b'Hello', message])
 
+    def generate_tasks(self, task_type, json_request=None):
+        if task_type == EXTRACT_TASK:
+            task_queue = []
+            for i in range(1, 13):
+                json_request["label"] = i
+                t = Task(task_type, self._backend_stream)
+                t.add_payload(json.dumps(json_request))
+                task_queue.append(t)
+
+            return task_queue
+
+        pass
     def extract_query_json_and_generate_tasks(self, json_request):
         # Hardcoded labels since there are 12 labels possible in the dataset
         # And it is easier to query random values by label in influxDB
@@ -110,6 +222,24 @@ class BrokerHandler(mh.RouterMessageHandler):
 
         return task_queue
 
+    def shuffle_and_split_aggregated_extracted_data(self, aggregated_extracted_data):
+        return list(split(aggregated_extracted_data, NUMBER_OF_TRAINERS))
+
+    def generate_train_tasks(self, split_np_arr_extracted_data):
+        task_queue = []
+        for data_split in split_np_arr_extracted_data:
+            q = []
+            dict_req = {}
+            dict_req['model'] = 'RF'
+            dict_req['queried_time'] = current_seconds_time()
+
+            t = Task(TRAIN_TASK, self._backend_stream)
+            t.add_payload(json.dumps(dict_req))
+            t.add_payload(data_split)
+            task_queue.append(t)
+
+        return task_queue
+
     def aggregate_data(self, aggregated_pickles):
         output = []
         for pickled in aggregated_pickles:
@@ -117,4 +247,9 @@ class BrokerHandler(mh.RouterMessageHandler):
             temp = unpickld.tolist()
             output.extend(temp)
         np_output = np.asarray(output)
+        print("Aggregated data with shape: {}".format(np_output.shape))
         return np_output
+
+    # TODO: Move send in Task.py to here
+    def send_task(self, address):
+        pass

@@ -1,10 +1,14 @@
 import sys
 import time
 import os
+import json
 
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
+from sklearn.preprocessing import StandardScaler
 import numpy as np
+from joblib import dump, load
 
 sys.path.append('..')
 from utils.Utils import *
@@ -20,7 +24,7 @@ class WorkerHandler(mh.DealerMessageHandler):
     received_counter = 0
     some_task_queue = []
 
-    def __init__(self, backend_stream, stop, mani_handler, extract_handler, train_handler):
+    def __init__(self, identity, backend_stream, stop, mani_handler, extract_handler, train_handler):
         # json_load is the element index of the msg_type
         super().__init__(json_load=0)
         # Instance variables
@@ -29,6 +33,7 @@ class WorkerHandler(mh.DealerMessageHandler):
         self._mani_handler = mani_handler
         self._extract_handler = extract_handler
         self._train_handler = train_handler
+        self._identity = identity
 
         WorkerHandler.received_counter = 0
         WorkerHandler.some_task_queue = []
@@ -45,14 +50,45 @@ class WorkerHandler(mh.DealerMessageHandler):
         sender = decode(data[0])
         data_arr = decode(data[1])
         print("Received {}:{} from Broker".format(EXTRACT_TASK, data_arr))
-
-        extracted_data = self._extract_handler.extract_features(data[1:])
+        
+        json_req = json.loads(data_arr)
+        extracted_data = self._extract_handler.extract_features(json_req)
         print("Extracted: {}".format(extracted_data.shape))
 
-        # clf = self._train_handler.train_model(extracted_data)
-        # print(clf)
-
         self._backend_stream.send_multipart([encode(EXTRACT_RESPONSE), b'Done extracting...', zip_and_pickle(extracted_data)])
+
+    def train_task(self, *data):
+        sender = decode(data[0])
+        dict_req = decode(data[1])
+        unpickled_data = unpickle_and_unzip(data[2])
+        print("Received train_task from: {}, {}, {}".format(sender, dict_req, unpickled_data.shape))
+
+        clf = self._train_handler.train_model(unpickled_data)
+        self._train_handler.save_model(self._identity)
+
+        model_name = "{}-RF-model.joblib".format(self._identity)
+        loaded_clf = self._train_handler.load_model(model_name)
+        # print(loaded_clf.estimators_)
+
+        self._backend_stream.send_multipart([encode(TRAIN_RESPONSE), b'Done training and saved a model...'])
+
+    def classify_task(self, *data):
+        sender = decode(data[0])
+        test_array = unpickle_and_unzip(data[1])
+        print("Received classify task from broker with shape:{}".format(test_array.shape))
+        
+        X = test_array[:,:-1]
+        y = test_array[:,-1:]
+
+        model_name = "{}-RF-model.joblib".format(self._identity)
+        loaded_clf = self._train_handler.load_model(model_name)
+        y_pred = loaded_clf.predict(X)
+
+        acc = accuracy_score(y, y_pred)
+        print("Accuracy: {}".format(acc))
+        print(confusion_matrix(y, y_pred))
+        print(classification_report(y, y_pred))
+
 
 # TODO: Create a handler for each type of message for the broker
 class ManiHandler(object):
@@ -64,15 +100,12 @@ class ManiHandler(object):
         return WorkerHandler.received_counter
 
 class ExtractHandler(object):
-    def extract_features(self, *data):
-        d = data[0]
-        print("Doing some extracting on {}.".format(d[0]))
-
-        nout = self.get_data_from_DB('1', 'acc', 128)
+    def extract_features(self, json_req):
+        nout = self.get_data_from_DB(json_req['label'], json_req['database'], json_req['rows'])
         print("Done extracting...")
 
         if nout.size != 0:
-            label_col = np.full((nout.shape[0], 1), int('1'))
+            label_col = np.full((nout.shape[0], 1), int(json_req['label']))
             nout = np.append(nout, label_col, axis=1)
 
         return nout
@@ -96,10 +129,29 @@ class TrainHandler(object):
     def train_model(self, extracted_data):
         X = extracted_data[:,:-1]
         y = extracted_data[:,-1:]
-        print(y)
+        print("Training data received: {}".format(extracted_data.shape))
+        # print(y)
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=100)
+
+        sc = StandardScaler()
+        X_train = sc.fit_transform(X_train)
+        X_test = sc.transform(X_test)
+
         clf = RandomForestClassifier(n_estimators=20, random_state=100)  
-        clf.fit(X_train, y_train.ravel())
+        self.clf = clf
+        self.clf.fit(X_train, y_train.ravel())
+
         y_pred = clf.predict(X_test)
-        # acc = accuracy_score(y_test, y_pred)
-        return clf
+        acc = accuracy_score(y_test, y_pred)
+        print(acc)
+        print(confusion_matrix(y_test, y_pred))
+        print(classification_report(y_test, y_pred))
+        return self.clf
+
+    def save_model(self, identity):
+        # TODO: Save to directory 'models'
+        model_name = "{}-RF-model.joblib".format(identity)
+        dump(self.clf, model_name)
+    
+    def load_model(self, model_name):
+        return load(model_name)

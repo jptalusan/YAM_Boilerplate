@@ -130,4 +130,7 @@ dmypy.json
 data/
 
 .DS_Store
+
+*.pkl
+*.txt
 # End of https://www.gitignore.io/api/python

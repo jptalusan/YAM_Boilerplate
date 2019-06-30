@@ -1,6 +1,7 @@
 import time
 import pickle
 import blosc
+import numpy as np
 
 decode = lambda x: x.decode('utf-8')
 encode = lambda x: x.encode('ascii')
@@ -17,3 +18,10 @@ def unpickle_and_unzip(pickled):
     unpickld = pickle.loads(unzipped)
     return unpickld
     
+# TODO: For some reason, the shuffle is not working? I thought it was inplace.
+# This might cause too much memory use though. (most probably)
+def split(a, n):
+    # np.random.shuffle(a)
+    a_ = a[np.random.permutation(a.shape[0])]
+    k, m = divmod(len(a_), n)
+    return (a_[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n))

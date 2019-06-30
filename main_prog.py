@@ -29,7 +29,7 @@ def client():
     dict_req['train_method'] = 'DISTRIBUTED'
     dict_req['distribution_method'] = 'RND'
     dict_req['queried_time'] = current_seconds_time()
-    dict_req['rows'] = 500
+    dict_req['rows'] = 128
     print(type(dict_req))
     dict_req = json.dumps(dict_req)
 

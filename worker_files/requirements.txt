@@ -10,3 +10,4 @@ psutil
 joblib
 zmq
 tornado
+pandas

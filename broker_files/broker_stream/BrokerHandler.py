@@ -11,6 +11,8 @@ import random
 import numpy as np
 import pickle
 
+from sklearn.model_selection import train_test_split
+
 sys.path.append('..')
 
 NUMBER_OF_TRAINERS = 3
@@ -46,34 +48,21 @@ class BrokerHandler(mh.RouterMessageHandler):
         print("Received plzdiekthxbye")
         """Just calls :meth:`BrokerProcess.stop`."""
         self._stop()
-
-    # Start DEBUG
-    def extract_query(self, *data):
-        sender = decode(data[0])
-        self.client = sender
-
-        file = open('test_data/tda.pkl',"rb")
-        tda_loaded = pickle.load(file)
-        print(tda_loaded.shape)
-
-        # some_test_data = tda_loaded
-        self._backend_stream.send_multipart([b'Worker-0000', encode(TRAIN_TASK), zip_and_pickle(tda_loaded)])
-    # End DEBUG
     
-    # def extract_query(self, *data):
-    #     self.last_response_received = EXTRACT_QUERY
-    #     self.client = decode(data[0])
-    #     query = decode(data[1])
-    #     query = json.loads(query)
+    def extract_query(self, *data):
+        self.last_response_received = EXTRACT_QUERY
+        self.client = decode(data[0])
+        query = decode(data[1])
+        query = json.loads(query)
 
-    #     # new_tasks = self.extract_query_json_and_generate_tasks(query)
-    #     new_tasks = self.generate_tasks(EXTRACT_TASK, query)
-    #     # For now we assume that only one query at a time, since we are only measuring speeds and overhead
-    #     BrokerHandler.some_broker_task_queue.clear()
-    #     BrokerHandler.some_broker_task_queue.extend(new_tasks)
+        # new_tasks = self.extract_query_json_and_generate_tasks(query)
+        new_tasks = self.generate_tasks(EXTRACT_TASK, query)
+        # For now we assume that only one query at a time, since we are only measuring speeds and overhead
+        BrokerHandler.some_broker_task_queue.clear()
+        BrokerHandler.some_broker_task_queue.extend(new_tasks)
 
-    #     self.send_task_to_worker()
-    #     # TODO: Probably needs some information on available workers...
+        self.send_task_to_worker()
+        # TODO: Probably needs some information on available workers...
 
     def extract_response(self, *data):
         self.last_response_received = EXTRACT_RESPONSE
@@ -112,7 +101,6 @@ class BrokerHandler(mh.RouterMessageHandler):
         # Start DEBUG
         X = tda_loaded[:,:-1]
         y = tda_loaded[:,-1:]
-        print("Training data received: {}".format(extracted_data.shape))
         # print(y)
 
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=100)

@@ -131,6 +131,8 @@ data/
 
 .DS_Store
 
+test_data/
+models/
 *.pkl
 *.txt
 # End of https://www.gitignore.io/api/python

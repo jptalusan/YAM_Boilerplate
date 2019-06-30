@@ -66,10 +66,6 @@ class WorkerHandler(mh.DealerMessageHandler):
         clf = self._train_handler.train_model(unpickled_data)
         self._train_handler.save_model(self._identity)
 
-        model_name = "{}-RF-model.joblib".format(self._identity)
-        loaded_clf = self._train_handler.load_model(model_name)
-        # print(loaded_clf.estimators_)
-
         self._backend_stream.send_multipart([encode(TRAIN_RESPONSE), b'Done training and saved a model...'])
 
     def classify_task(self, *data):
@@ -79,8 +75,9 @@ class WorkerHandler(mh.DealerMessageHandler):
         
         X = test_array[:,:-1]
         y = test_array[:,-1:]
+        print(X.shape, y.shape)
 
-        model_name = "{}-RF-model.joblib".format(self._identity)
+        model_name = "models/{}-RF-model.joblib".format(self._identity)
         loaded_clf = self._train_handler.load_model(model_name)
         y_pred = loaded_clf.predict(X)
 
@@ -130,12 +127,9 @@ class TrainHandler(object):
         X = extracted_data[:,:-1]
         y = extracted_data[:,-1:]
         print("Training data received: {}".format(extracted_data.shape))
+        print(X.shape, y.shape)
         # print(y)
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=100)
-
-        sc = StandardScaler()
-        X_train = sc.fit_transform(X_train)
-        X_test = sc.transform(X_test)
 
         clf = RandomForestClassifier(n_estimators=20, random_state=100)  
         self.clf = clf
@@ -150,7 +144,7 @@ class TrainHandler(object):
 
     def save_model(self, identity):
         # TODO: Save to directory 'models'
-        model_name = "{}-RF-model.joblib".format(identity)
+        model_name = "models/{}-RF-model.joblib".format(identity)
         dump(self.clf, model_name)
     
     def load_model(self, model_name):

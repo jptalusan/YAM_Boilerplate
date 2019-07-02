@@ -48,21 +48,43 @@ class BrokerHandler(mh.RouterMessageHandler):
         print("Received plzdiekthxbye")
         """Just calls :meth:`BrokerProcess.stop`."""
         self._stop()
-    
+
+    # Start DEBUG
     def extract_query(self, *data):
-        self.last_response_received = EXTRACT_QUERY
-        self.client = decode(data[0])
-        query = decode(data[1])
-        query = json.loads(query)
+        sender = decode(data[0])
+        self.client = sender
 
-        # new_tasks = self.extract_query_json_and_generate_tasks(query)
-        new_tasks = self.generate_tasks(EXTRACT_TASK, query)
-        # For now we assume that only one query at a time, since we are only measuring speeds and overhead
-        BrokerHandler.some_broker_task_queue.clear()
-        BrokerHandler.some_broker_task_queue.extend(new_tasks)
+        file = open('test_data/tda.pkl',"rb")
+        tda_loaded = pickle.load(file)
+        print(tda_loaded.shape)
 
+        # some_test_data = tda_loaded
+        
+        # self._backend_stream.send_multipart([b'Worker-0000', encode(TRAIN_TASK), zip_and_pickle(tda_loaded)])
+
+        shuffled_split_data = self.shuffle_and_split_aggregated_extracted_data(tda_loaded)
+        generated_train_tasks = self.generate_train_tasks(shuffled_split_data)
+        
+        BrokerHandler.some_broker_task_queue.extend(generated_train_tasks)
         self.send_task_to_worker()
-        # TODO: Probably needs some information on available workers...
+    # End DEBUG
+    
+    # Start ACTUAL
+    # def extract_query(self, *data):
+    #     self.last_response_received = EXTRACT_QUERY
+    #     self.client = decode(data[0])
+    #     query = decode(data[1])
+    #     query = json.loads(query)
+
+    #     # new_tasks = self.extract_query_json_and_generate_tasks(query)
+    #     new_tasks = self.generate_tasks(EXTRACT_TASK, query)
+    #     # For now we assume that only one query at a time, since we are only measuring speeds and overhead
+    #     BrokerHandler.some_broker_task_queue.clear()
+    #     BrokerHandler.some_broker_task_queue.extend(new_tasks)
+
+    #     self.send_task_to_worker()
+    #     # TODO: Probably needs some information on available workers...
+    # End ACTUAL
 
     def extract_response(self, *data):
         self.last_response_received = EXTRACT_RESPONSE

@@ -17,6 +17,7 @@ CLASSIFY_QUERY = 'classify_query'
 WORKER_READY = 'worker_ready'
 
 def client():
+    
     """Sends ping requests and waits for replies."""
     context = zmq.Context()
     broker_sock = context.socket(zmq.DEALER)
@@ -34,8 +35,8 @@ def client():
     dict_req = json.dumps(dict_req)
 
 #  must scalarize data ,unbalanced
-    broker_sock.send_multipart([encode(EXTRACT_QUERY), encode(dict_req)])
-    # broker_sock.send_multipart([encode(CLASSIFY_QUERY), encode(dict_req)])
+    # broker_sock.send_multipart([encode(EXTRACT_QUERY), encode(dict_req)])
+    broker_sock.send_multipart([encode(CLASSIFY_QUERY), encode(dict_req)])
     try:
         while True:
             msg = broker_sock.recv_multipart()

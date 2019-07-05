@@ -29,25 +29,35 @@ class BrokerHandler(mh.RouterMessageHandler):
     # Place variables here that i plan on reusing like the arrays etc...
 
     def __init__(self, frontend_stream, backend_stream, stop):
-        # print("BrokerHandler.__init__()")
+        print("BrokerHandler.__init__()")
         super().__init__(json_load=1)
         self._frontend_stream = frontend_stream
         self._backend_stream = backend_stream
         self._stop = stop
 
-        # TODO: This is only for testing
-        self.client = ''
 
         self.aggregated_data = []
 
         # TODO: STOP GAP to implement a workflow, change in future
         self.last_response_received = ''
         BrokerHandler.some_broker_task_queue = []
+        # TODO: This is only for testing
+        BrokerHandler.client = ''
 
     def plzdiekthxbye(self, *data):
         print("Received plzdiekthxbye")
         """Just calls :meth:`BrokerProcess.stop`."""
         self._stop()
+
+    def test_ping_query(self, *data):
+        sender = decode(data[0])
+        BrokerHandler.client = sender
+        print("Received {} query.".format(BrokerHandler.client))
+        self._backend_stream.send_multipart([b'Worker-0000', b'test_ping_task'])
+    
+    def test_ping_response(self, *data):
+        print("Received worker response.")
+        self._frontend_stream.send_multipart([encode(BrokerHandler.client), b'Pong'])
 
     # Start DEBUG
     def extract_query(self, *data):

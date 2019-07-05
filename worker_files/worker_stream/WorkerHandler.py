@@ -46,6 +46,10 @@ class WorkerHandler(mh.DealerMessageHandler):
         """Just calls :meth:`WorkerProcess.stop`."""
         self._stop()
 
+    def test_ping_task(self, *data):
+        print("Received task from broker.")
+        self._backend_stream.send_multipart([b"test_ping_response"])
+
     def extract_task(self, *data):
         sender = decode(data[0])
         data_arr = decode(data[1])

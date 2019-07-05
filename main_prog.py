@@ -17,11 +17,9 @@ CLASSIFY_QUERY = 'classify_query'
 WORKER_READY = 'worker_ready'
 
 def client():
-    
-    """Sends ping requests and waits for replies."""
     context = zmq.Context()
     broker_sock = context.socket(zmq.DEALER)
-    broker_sock.identity = (u"Client-%s" % str(0).zfill(3)).encode('ascii')
+    broker_sock.identity = (u"Client-%s" % str(0).zfill(4)).encode('ascii')
     broker_sock.connect('tcp://%s:%s' % (host, port))
 
     dict_req = {}
@@ -35,8 +33,8 @@ def client():
     dict_req = json.dumps(dict_req)
 
 #  must scalarize data ,unbalanced
-    # broker_sock.send_multipart([encode(EXTRACT_QUERY), encode(dict_req)])
-    broker_sock.send_multipart([encode(CLASSIFY_QUERY), encode(dict_req)])
+    broker_sock.send_multipart([encode(EXTRACT_QUERY), encode(dict_req)])
+    # broker_sock.send_multipart([encode(CLASSIFY_QUERY), encode(dict_req)])
     try:
         while True:
             msg = broker_sock.recv_multipart()
@@ -46,5 +44,19 @@ def client():
     except zmq.ContextTerminated:
       return
 
+# Just to test if all the connections are working.
+def ping():
+    context = zmq.Context()
+    broker_sock = context.socket(zmq.DEALER)
+    broker_sock.identity = (u"Client-%s" % str(0).zfill(4)).encode('ascii')
+    broker_sock.connect('tcp://%s:%s' % (host, port))
+    broker_sock.send_multipart([b'test_ping_query', b'Ping'])
+    print("Sent: Ping")
+    msg = broker_sock.recv_multipart()
+    resp = msg[0]
+    print("Received: {}".format(decode(resp)))
+
 if __name__ == '__main__':
-    Process(target=client, args=()).start()
+    # Process(target=client, args=()).start()
+    Process(target=ping, args=()).start()
+    

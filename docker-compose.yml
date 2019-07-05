@@ -1,6 +1,6 @@
 version: "2.2"
 services:
-  worker_000:
+  worker-0000:
     build: ./worker_files/
     volumes: 
       - ./worker_files/:/usr/src/app
@@ -13,7 +13,7 @@ services:
       - hosts.env
       - constants.env
 
-  worker_001:
+  worker-0001:
     build: ./worker_files/
     volumes: 
       - ./worker_files/:/usr/src/app
@@ -26,7 +26,7 @@ services:
       - hosts.env
       - constants.env
 
-  worker_002:
+  worker-0002:
     build: ./worker_files/
     volumes: 
       - ./worker_files/:/usr/src/app

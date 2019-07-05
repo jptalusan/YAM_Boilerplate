@@ -135,4 +135,5 @@ test_data/
 models/
 *.pkl
 *.txt
+*.npy
 # End of https://www.gitignore.io/api/python

@@ -4,6 +4,9 @@ from utils.Utils import *
 from classes.WorkerQueue import WorkerQueue
 from classes.Worker import Worker
 from classes.Task import Task
+from classes.Query import Query
+
+from numpy import genfromtxt
 import sys
 import json
 import random
@@ -34,8 +37,6 @@ class BrokerHandler(mh.RouterMessageHandler):
         self._frontend_stream = frontend_stream
         self._backend_stream = backend_stream
         self._stop = stop
-
-
         self.aggregated_data = []
 
         # TODO: STOP GAP to implement a workflow, change in future
@@ -59,56 +60,33 @@ class BrokerHandler(mh.RouterMessageHandler):
         print("Received worker response.")
         self._frontend_stream.send_multipart([encode(BrokerHandler.client), b'Pong'])
 
-    # Start DEBUG
-    def extract_query(self, *data):
+    def train_query(self, *data):
         sender = decode(data[0])
-        self.client = sender
+        json_str = decode(data[1])
 
-        file = open('test_data/tda.pkl',"rb")
-        tda_loaded = pickle.load(file)
-        print(tda_loaded.shape)
+        q = Query(sender, json_str)
+        print("Received query with id: {}".format(q._id))
+        print("Json: {}".format(q._json_str))
 
-        # some_test_data = tda_loaded
+        # For this iteration of the code, just get the data from broker
+        # Split it up and add it to payloads of tasks
+        # Reading CSV to numpy array and stacking them (feat + label)
+
+        X_train = genfromtxt('data/Train/X_train.txt', delimiter=' ')
+        print(X_train.shape)
+
+        y_train = genfromtxt('data/Train/y_train.txt', delimiter=' ')
+        y_train = y_train.reshape(-1, 1)
+        print(y_train.shape)
+
+        train = np.append(X_train, y_train, axis=1)
+        print(train.shape)
         
-        # self._backend_stream.send_multipart([b'Worker-0000', encode(TRAIN_TASK), zip_and_pickle(tda_loaded)])
-
-        shuffled_split_data = self.shuffle_and_split_aggregated_extracted_data(tda_loaded)
-        generated_train_tasks = self.generate_train_tasks(shuffled_split_data)
-        
-        BrokerHandler.some_broker_task_queue.extend(generated_train_tasks)
-        self.send_task_to_worker()
-    # End DEBUG
-    
-    # Start ACTUAL
-    # def extract_query(self, *data):
-    #     self.last_response_received = EXTRACT_QUERY
-    #     self.client = decode(data[0])
-    #     query = decode(data[1])
-    #     query = json.loads(query)
-
-    #     # new_tasks = self.extract_query_json_and_generate_tasks(query)
-    #     new_tasks = self.generate_tasks(EXTRACT_TASK, query)
-    #     # For now we assume that only one query at a time, since we are only measuring speeds and overhead
-    #     BrokerHandler.some_broker_task_queue.clear()
-    #     BrokerHandler.some_broker_task_queue.extend(new_tasks)
-
-    #     self.send_task_to_worker()
-    #     # TODO: Probably needs some information on available workers...
-    # End ACTUAL
-
-    def extract_response(self, *data):
-        self.last_response_received = EXTRACT_RESPONSE
-        sender = decode(data[0])
-        msg = decode(data[1])
-        array = unpickle_and_unzip(data[2])
-
-        self.aggregated_data.append(data[2])
-        # print("Data len:{}".format(len(data)))
-        print("Extract {} response: {}, shape: {}".format(sender, msg, array.shape))
-
-        self.notify_client(b' World!')
-        worker_addr = data[0]
-        BrokerHandler.workers.ready(Worker(worker_addr, b'', b''))
+        data_arr = split(train, NUMBER_OF_TRAINERS)
+        new_tasks = self.generate_train_tasks(data_arr)
+        [q.add_task_id(task._id) for task in new_tasks]
+        print(q)
+        BrokerHandler.some_broker_task_queue.extend(new_tasks)
         self.send_task_to_worker()
 
     def train_response(self, *data):
@@ -133,43 +111,11 @@ class BrokerHandler(mh.RouterMessageHandler):
         # Start DEBUG
         X = tda_loaded[:,:-1]
         y = tda_loaded[:,-1:]
-        # print(y)
 
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=100)
         test_data_arr = np.append(X_test, y_test, axis=1)
-        # End DEBUG
 
-        # some_test_data = tda_loaded
         self._backend_stream.send_multipart([b'Worker-0000', encode(CLASSIFY_TASK), zip_and_pickle(test_data_arr)])
-        # For testing mainly, read data from test_data
-        # send for classification and get array of decision tree predictions
-
-        # input_data_dir = 'test_data/'
-        # filename = 'X_test.txt'
-        # path = input_data_dir + filename
-        # delimiter = " "
-        # df_X = pd.read_csv(path, 
-        #                 header=None, 
-        #                 delimiter=delimiter, 
-        #                 dtype=np.float64)
-
-        # print(df_X.values.shape)
-        # print(df_X.shape)
-        # print(type(df_X.values))
-
-        # input_data_dir = 'test_data/'
-        # filename = 'y_test.txt'
-        # path = input_data_dir + filename
-        # delimiter = " "
-        # df_y = pd.read_csv(path, 
-        #                 header=None, 
-        #                 delimiter=delimiter, 
-        #                 dtype=np.int)
-
-        # df_y.head()
-        # test_data_arr = np.append(df_X.values, df_y.values, axis=1)
-        # test_data_arr
-        # print(test_data_arr.shape)
 
     def classify_response(self, *data):
         self._frontend_stream.send_multipart(b"Client-000", b"Done classifying")
@@ -230,17 +176,6 @@ class BrokerHandler(mh.RouterMessageHandler):
             return task_queue
 
         pass
-    def extract_query_json_and_generate_tasks(self, json_request):
-        # Hardcoded labels since there are 12 labels possible in the dataset
-        # And it is easier to query random values by label in influxDB
-        print("-> extract_query_parser")
-        task_queue = []
-        for i in range(1, 13):
-            json_request["label"] = i
-
-            task_queue.append(json.dumps(json_request))
-
-        return task_queue
 
     def shuffle_and_split_aggregated_extracted_data(self, aggregated_extracted_data):
         return list(split(aggregated_extracted_data, NUMBER_OF_TRAINERS))

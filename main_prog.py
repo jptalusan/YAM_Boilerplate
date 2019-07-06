@@ -33,7 +33,8 @@ def client():
     dict_req = json.dumps(dict_req)
 
 #  must scalarize data ,unbalanced
-    broker_sock.send_multipart([encode(EXTRACT_QUERY), encode(dict_req)])
+    broker_sock.send_multipart([encode(TRAIN_QUERY), encode(dict_req)])
+    # broker_sock.send_multipart([encode(EXTRACT_QUERY), encode(dict_req)])
     # broker_sock.send_multipart([encode(CLASSIFY_QUERY), encode(dict_req)])
     try:
         while True:
@@ -57,6 +58,6 @@ def ping():
     print("Received: {}".format(decode(resp)))
 
 if __name__ == '__main__':
-    # Process(target=client, args=()).start()
-    Process(target=ping, args=()).start()
+    Process(target=client, args=()).start()
+    # Process(target=ping, args=()).start()
     

@@ -1,4 +1,5 @@
 import uuid
+from .Task import Task
 
 class Query(object):
     def __init__(self, client, json_str, socket=None):
@@ -12,11 +13,20 @@ class Query(object):
 
         self._payload = []
 
+        # An array of tasks under this query
+        self._tasks = []
+
     def add_task_id(self, task_id):
         self._generated_task_ids.append(task_id)
 
     def remove_task_id(self, task_id):
         self._generated_task_ids.remove(task_id)
+
+    def add_task(self, task):
+        self._tasks.append(task)
+
+    def remove_task(self, task):
+        self._tasks.remove(task)
 
     def task_id_count(self):
         return len(self._generated_task_ids)

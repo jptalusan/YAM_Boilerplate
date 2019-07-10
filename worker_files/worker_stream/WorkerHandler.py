@@ -63,14 +63,28 @@ class WorkerHandler(mh.DealerMessageHandler):
 
     def train_task(self, *data):
         sender = decode(data[0])
-        dict_req = decode(data[1])
-        unpickled_data = unpickle_and_unzip(data[2])
-        print("Received train_task from: {}, {}, {}".format(sender, dict_req, unpickled_data.shape))
+        task_id = decode(data[1])
+        print("Received a {} with ID: {}".format(sender, task_id))
 
-        clf = self._train_handler.train_model(unpickled_data)
+        payload_count = int(decode(data[2]))
+        # Useful but probably better to hard code right now
+        json = None
+        narr = None
+        print("Paylod count: {}".format(payload_count))
+        for i in range(payload_count):
+            load_type = decode(data[3 + (i * 2)])
+            if load_type == 'String' or load_type == 'Bytes':
+                load = decode(data[3 + (i * 2) + 1])
+                print("Type: {}, load: {}".format(load_type, load))
+                json = load
+            elif load_type == 'ZippedPickleNdArray':
+                load = unpickle_and_unzip(data[3 + (i * 2) + 1])
+                print("Type: {}, load shape: {}".format(load_type, load.shape))
+                narr = load
+
+
+        clf = self._train_handler.train_model(narr)
         self._train_handler.save_model(self._identity)
-
-        self._backend_stream.send_multipart([encode(TRAIN_RESPONSE), b'Done training and saved a model...'])
 
     def classify_task(self, *data):
         sender = decode(data[0])

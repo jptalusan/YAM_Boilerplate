@@ -50,6 +50,11 @@ class BrokerHandler(mh.RouterMessageHandler):
         """Just calls :meth:`BrokerProcess.stop`."""
         self._stop()
 
+    '''
+    Test functions for checking if the docker/middleware is working in terms of
+    connectivity.
+    '''
+
     def test_ping_query(self, *data):
         sender = decode(data[0])
         BrokerHandler.client = sender
@@ -60,6 +65,10 @@ class BrokerHandler(mh.RouterMessageHandler):
         print("Received worker response.")
         self._frontend_stream.send_multipart([encode(BrokerHandler.client), b'Pong'])
 
+    '''
+    Training methods: Handle the training queries and responses from the clients and 
+    workers respectively.
+    '''
     def train_query(self, *data):
         sender = decode(data[0])
         json_str = decode(data[1])
@@ -72,6 +81,7 @@ class BrokerHandler(mh.RouterMessageHandler):
         # Split it up and add it to payloads of tasks
         # Reading CSV to numpy array and stacking them (feat + label)
 
+        # Generate "Collect" Tasks
         X_train = genfromtxt('data/Train/X_train.txt', delimiter=' ')
         print(X_train.shape)
 
@@ -83,16 +93,30 @@ class BrokerHandler(mh.RouterMessageHandler):
         print(train.shape)
         
         data_arr = split(train, NUMBER_OF_TRAINERS)
+
+        # Generate "Process" Tasks
         new_tasks = self.generate_train_tasks(data_arr)
         [q.add_task_id(task._id) for task in new_tasks]
-        print(q)
-        BrokerHandler.some_broker_task_queue.extend(new_tasks)
+        # print(q)
+
+        [q.add_task(task) for task in new_tasks]
+
+        # Generate "Aggregate" Tasks
+
+        # Add Query task to "Task" Queue
+        BrokerHandler.some_broker_task_queue.append(q)
         self.send_task_to_worker()
 
     def train_response(self, *data):
         sender = decode(data[0])
         message = decode(data[1])
+        self.worker_ready(sender)
         print("{} has finished training.".format(sender))
+
+    def purge_done_queries_in_queue(self):
+        # Check if a query has all its tasks done
+        # If so, remove it from the broker queue
+        pass
 
     def worker_ready(self, *data):
         print("A worker is ready:{}".format(data))
@@ -100,6 +124,9 @@ class BrokerHandler(mh.RouterMessageHandler):
         BrokerHandler.workers.ready(Worker(worker_addr, b'', b''))
         self.send_task_to_worker()
 
+    '''
+    Classification methods
+    '''
     def classify_query(self, *data):
         sender = decode(data[0])
         self.client = sender
@@ -121,61 +148,26 @@ class BrokerHandler(mh.RouterMessageHandler):
         self._frontend_stream.send_multipart(b"Client-000", b"Done classifying")
         pass
 
-    # This is a random task assignment, but it is load balanced because of a worker queue
+    # This is a random task assignment, 
+    # but it is load balanced because of a worker queue
     def send_task_to_worker(self):
-        # Loop through tasks, as long as there is a task and there is a worker free, send tasks.
-        # else, break and wait for new workers
-        if len(BrokerHandler.some_broker_task_queue) > 0:
-            while len(BrokerHandler.some_broker_task_queue) > 0:
-                if len(BrokerHandler.workers.queue) > 0:
-                    # TODO: Make a TASK class which includes a TASK FLAG then just create abstraction that sends the whole thing
-                    task = BrokerHandler.some_broker_task_queue.pop()
+        if len(BrokerHandler.workers.queue) == 0:
+            return # Return code probably
+        else:
+            if len(BrokerHandler.some_broker_task_queue) == 0:
+                return # No tasks remaining
+            else:
+                query = BrokerHandler.some_broker_task_queue[0]
+                print(query)
+                
+                for task in query._tasks:
                     addr = BrokerHandler.workers.next()
                     task.send(addr)
-                else:
-                    break
-        # After extracting, you aggregate and shuffle the data, then split it into the number of trainers you want
-        # This will start becoming messy
-        # TODO: Put these in a function
-        else:
-            # TODO: Check if all workers are available (just to know if all arrived)
-            if len(BrokerHandler.workers.queue) != NUMBER_OF_TRAINERS:
-                return False
-
-            print("No tasks available...")
-            # Have to have some flag here that prevents it from going in a  loop,
-            # it should have some flow EXTRACT -> TRAIN -> CLASSIFY
-            # TODO: Stop gap. in conjunction with the last_response_received flag
-
-            if self.last_response_received == EXTRACT_RESPONSE:
-                aggregated_extracted_data = self.aggregate_data(self.aggregated_data)
-
-                shuffled_split_data = self.shuffle_and_split_aggregated_extracted_data(aggregated_extracted_data)
-                generated_train_tasks = self.generate_train_tasks(shuffled_split_data)
-                
-                BrokerHandler.some_broker_task_queue.extend(generated_train_tasks)
-                self.send_task_to_worker()
-            else:
-                return False #?
-                    
 
     def notify_client(self, *data):
         print("Notifying {}".format(self.client))
         message = data[0]
         self._frontend_stream.send_multipart([b'Client-000', b'Hello', message])
-
-    def generate_tasks(self, task_type, json_request=None):
-        if task_type == EXTRACT_TASK:
-            task_queue = []
-            for i in range(1, 13):
-                json_request["label"] = i
-                t = Task(task_type, self._backend_stream)
-                t.add_payload(json.dumps(json_request))
-                task_queue.append(t)
-
-            return task_queue
-
-        pass
 
     def shuffle_and_split_aggregated_extracted_data(self, aggregated_extracted_data):
         return list(split(aggregated_extracted_data, NUMBER_OF_TRAINERS))
@@ -183,7 +175,6 @@ class BrokerHandler(mh.RouterMessageHandler):
     def generate_train_tasks(self, split_np_arr_extracted_data):
         task_queue = []
         for data_split in split_np_arr_extracted_data:
-            q = []
             dict_req = {}
             dict_req['model'] = 'RF'
             dict_req['queried_time'] = current_seconds_time()

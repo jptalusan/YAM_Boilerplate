@@ -3,6 +3,15 @@ import time
 import os
 import json
 
+# Testing
+import uuid
+from datetime import datetime
+import random
+
+import time
+from string import ascii_uppercase as uppercase
+# End testing
+
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
@@ -24,11 +33,12 @@ class WorkerHandler(mh.DealerMessageHandler):
     received_counter = 0
     some_task_queue = []
 
-    def __init__(self, identity, backend_stream, stop, mani_handler, extract_handler, train_handler):
+    def __init__(self, identity, backend_stream, publish_stream, stop, mani_handler, extract_handler, train_handler):
         # json_load is the element index of the msg_type
         super().__init__(json_load=0)
         # Instance variables
         self._backend_stream = backend_stream
+        self._publish_stream = publish_stream
         self._stop = stop
         self._mani_handler = mani_handler
         self._extract_handler = extract_handler
@@ -39,6 +49,11 @@ class WorkerHandler(mh.DealerMessageHandler):
         WorkerHandler.some_task_queue = []
 
         print("WorkerHandler:__init__")
+
+        self._publish_stream.send_multipart([b"topic", b"Message"])
+        self._publish_stream.send(b'topic helloworld')
+        self._publish_stream.send(b' helloworld2')
+
         self._backend_stream.send_multipart([encode(WORKER_READY)])
 
     def plzdiekthxbye(self, *data):
@@ -66,25 +81,54 @@ class WorkerHandler(mh.DealerMessageHandler):
         task_id = decode(data[1])
         print("Received a {} with ID: {}".format(sender, task_id))
 
-        payload_count = int(decode(data[2]))
-        # Useful but probably better to hard code right now
-        json = None
-        narr = None
-        print("Paylod count: {}".format(payload_count))
-        for i in range(payload_count):
-            load_type = decode(data[3 + (i * 2)])
-            if load_type == 'String' or load_type == 'Bytes':
-                load = decode(data[3 + (i * 2) + 1])
-                print("Type: {}, load: {}".format(load_type, load))
-                json = load
-            elif load_type == 'ZippedPickleNdArray':
-                load = unpickle_and_unzip(data[3 + (i * 2) + 1])
-                print("Type: {}, load shape: {}".format(load_type, load.shape))
-                narr = load
+        # payload_count = int(decode(data[2]))
+        # # Useful but probably better to hard code right now
+        # json_query = None
+        # narr = None
+        # print("Paylod count: {}".format(payload_count))
+        # for i in range(payload_count):
+        #     load_type = decode(data[3 + (i * 2)])
+        #     if load_type == 'String' or load_type == 'Bytes':
+        #         load = decode(data[3 + (i * 2) + 1])
+        #         print("Type: {}, load: {}".format(load_type, load))
+        #         json_query = load
+        #     elif load_type == 'ZippedPickleNdArray':
+        #         load = unpickle_and_unzip(data[3 + (i * 2) + 1])
+        #         print("Type: {}, load shape: {}".format(load_type, load.shape))
+        #         narr = load
 
 
-        clf = self._train_handler.train_model(narr)
-        self._train_handler.save_model(self._identity)
+        # clf = self._train_handler.train_model(narr)
+        # self._train_handler.save_model(self._identity)
+        time.sleep(3)
+        for reqnum in range(10):
+            string = "%s-%05d" % (uppercase[random.randint(0,5)], random.randint(0,100000))
+            print("Publishing: {}".format(string))
+    
+            # You can send it in the format described in above [topic-data]
+            # socket.send(string.encode('utf-8'))
+    
+            # As part of a multipart
+            self._publish_stream.send_multipart([string.encode('utf-8'), b"TEST"])
+    
+            # Or with the topic listed as the first part of the multipart
+            # socket.send_multipart([b"A", b"YES"])
+    
+            # You can also add payloads
+            # socket.send_multipart([b"status", b"something", b"YES"])
+            time.sleep(0.1)
+        
+        # message_id, now = str(uuid.uuid4()), datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        # humidity = random.randrange(20, 40)
+        # temperature_in_celsius = random.randrange(32, 41)
+        # payload = json.dumps({"message_id": message_id, "humidity":humidity, "temperature_in_celsius":temperature_in_celsius, "createdAt":now})
+        # message = "{topic} #{id} at {timestamp} --> {payload}  ".format(topic="topic", id="id", timestamp="timestamp", payload=payload)
+        # print("Publishing: {}".format(message))
+        # self._publish_stream.send(encode(message))
+        # self._publish_stream.send_multipart([b"topic", b"Message"])
+        # self._publish_stream.send(b'topic helloworld')
+        # self._publish_stream.send(b' helloworld2')
+        # print("finished publishing.")
 
     def classify_task(self, *data):
         sender = decode(data[0])

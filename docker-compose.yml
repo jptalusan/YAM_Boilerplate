@@ -1,4 +1,4 @@
-version: "2.2"
+version: "3.5"
 services:
   worker-0000:
     build: ./worker_files/
@@ -12,6 +12,8 @@ services:
     env_file: 
       - hosts.env
       - constants.env
+    networks: 
+      - network_test_bed
 
   worker-0001:
     build: ./worker_files/
@@ -25,6 +27,8 @@ services:
     env_file: 
       - hosts.env
       - constants.env
+    networks: 
+      - network_test_bed
 
   worker-0002:
     build: ./worker_files/
@@ -38,13 +42,16 @@ services:
     env_file: 
       - hosts.env
       - constants.env
+    networks: 
+      - network_test_bed
 
   broker:
     build: ./broker_files/
     ports:
       - "6000:6000"
       - "7000:7000"
-      - "9999:9999"
+      - "8000:8000"
+      - "9000:9000"
     volumes:
       - ./broker_files:/usr/src/app
     environment: 
@@ -52,6 +59,8 @@ services:
     env_file: 
       - hosts.env
       - constants.env
+    networks: 
+      - network_test_bed
 
   influxdb:
     image: influxdb:1.7.3-alpine
@@ -63,3 +72,6 @@ services:
       - PYTHONBUFFERED=1
     logging:
       driver: none
+
+networks:
+  network_test_bed:

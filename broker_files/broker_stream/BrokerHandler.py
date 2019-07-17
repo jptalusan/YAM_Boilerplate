@@ -45,11 +45,47 @@ class BrokerHandler(mh.RouterMessageHandler):
         # TODO: This is only for testing
         BrokerHandler.client = ''
 
+        self.alive_workers = []
+
     def plzdiekthxbye(self, *data):
         print("Received plzdiekthxbye")
         """Just calls :meth:`BrokerProcess.stop`."""
         self._stop()
 
+    def status(self, *data):
+        print("Subs sent:{}".format(data))
+        topic = decode(data[0])
+        sender = decode(data[1])
+        payload = json.loads(decode(data[2]))
+        task_id = payload['task_id']
+        print(topic, sender, task_id)
+
+        for q in BrokerHandler.some_broker_task_queue:
+            for task in q._tasks:
+                if task._id == task_id:
+                    print("Found a match: {}".format(task._id))
+                    task.update_status(2) #2 == Done
+
+        # Update the task queue that the task with task_id is done..
+
+        self.purge_done_queries_in_queue()
+        self.worker_ready(data[1])
+
+    def heartbeat(self, *data):
+        topic = decode(data[0])
+        sender = decode(data[1])
+        print("Worker: {} is still alive.".format(sender))
+        self.alive_workers.append(sender)
+
+    def purge(workers):
+        # If not in alive_workers queue, remove from workers queue.
+        pass
+
+    def error(self, *data):
+        print("Error:{}".format(data))
+        print("Recived error, worker should just be ready again.")
+        sender = decode(data[1])
+        self.worker_ready(sender)
     '''
     Test functions for checking if the docker/middleware is working in terms of
     connectivity.
@@ -70,6 +106,7 @@ class BrokerHandler(mh.RouterMessageHandler):
     workers respectively.
     '''
     def train_query(self, *data):
+        print("->train_query()")
         sender = decode(data[0])
         json_str = decode(data[1])
 
@@ -113,10 +150,38 @@ class BrokerHandler(mh.RouterMessageHandler):
         self.worker_ready(sender)
         print("{} has finished training.".format(sender))
 
+    def extract_train_query(self, *data):
+        sender = decode(data[0])
+        json_str = decode(data[1])
+
+        q = Query(sender, json_str)
+        json_data = json.loads(json_str)
+
+        tasks = []
+        for user in json_data['users']:
+            task = self.generate_train_tasks_users(user, json_data['database'])
+            tasks.append(task)
+
+        [q.add_task_id(task._id) for task in tasks]
+        [q.add_task(task) for task in tasks]
+        BrokerHandler.some_broker_task_queue.append(q)
+        self.send_task_to_worker()
+
     def purge_done_queries_in_queue(self):
+        print("->purge_done_queries_in_queue()")
         # Check if a query has all its tasks done
         # If so, remove it from the broker queue
-        pass
+        done_queue = []
+        for q in BrokerHandler.some_broker_task_queue:
+            for t in q._tasks:
+                print("{}:{}".format(t._id, t._status))
+            if q.are_tasks_done():
+                done_queue.append(q)
+                print("Queue:{} is done.".format(q._id))
+
+        for dq in done_queue:
+            print("Removing queue:{}".format(dq._id))
+            BrokerHandler.some_broker_task_queue.remove(dq)
 
     def worker_ready(self, *data):
         print("A worker is ready:{}".format(data))
@@ -157,12 +222,16 @@ class BrokerHandler(mh.RouterMessageHandler):
             if len(BrokerHandler.some_broker_task_queue) == 0:
                 return # No tasks remaining
             else:
+                # TODO: Probably not the best way to do it.
                 query = BrokerHandler.some_broker_task_queue[0]
                 print(query)
                 
                 for task in query._tasks:
-                    addr = BrokerHandler.workers.next()
-                    task.send(addr)
+                    if task._status == 'None':
+                        addr = BrokerHandler.workers.next()
+                        # TODO: Add some flag to the task that it is sent already
+                        task.update_status(1) #1 == sent
+                        task.send(addr)
 
     def notify_client(self, *data):
         print("Notifying {}".format(self.client))
@@ -171,6 +240,17 @@ class BrokerHandler(mh.RouterMessageHandler):
 
     def shuffle_and_split_aggregated_extracted_data(self, aggregated_extracted_data):
         return list(split(aggregated_extracted_data, NUMBER_OF_TRAINERS))
+
+    def generate_train_tasks_users(self, users, db):
+        dict_req = {}
+        dict_req['model'] = 'RF'
+        dict_req['user'] = users
+        dict_req['database'] = db
+        dict_req['queried_time'] = current_seconds_time()
+
+        t = Task(TRAIN_TASK, self._backend_stream)
+        t.add_payload(json.dumps(dict_req))
+        return t
 
     def generate_train_tasks(self, split_np_arr_extracted_data):
         task_queue = []

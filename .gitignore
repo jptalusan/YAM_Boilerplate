@@ -136,4 +136,6 @@ models/
 *.pkl
 *.txt
 *.npy
+*.pkl.npy
+*.joblib
 # End of https://www.gitignore.io/api/python

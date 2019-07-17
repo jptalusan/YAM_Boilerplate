@@ -179,3 +179,13 @@ def compute_all_Acc_features(tAcc_XYZ, window, slide, fs):
     
     return all_Acc_features
 
+# For labeled data only
+def compute_labels(tAcc_XYZ, window, slide):
+    labels = []
+    sliding_labels = sliding_window(tAcc_XYZ[:, 3], window, slide)
+    for slide in sliding_labels:
+        slide = slide.astype(int)
+        counts = np.bincount(slide)
+        labels.append(np.argmax(counts))
+
+    return np.asarray(labels)

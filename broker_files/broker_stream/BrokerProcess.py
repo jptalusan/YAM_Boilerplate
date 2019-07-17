@@ -42,20 +42,19 @@ class BrokerProcess(zp.ZmqProcess):
         self.backend_stream, _ = self.stream(zmq.ROUTER, self.backend_addr, bind=True, identity=self.identity)
 
         # Create the stream and add the message handler
-        self.subscribe_stream, _ = self.stream(zmq.SUB, self.subs_addr, bind=True, identity=self.identity, subscribe=b"A-")
+        self.subscribe_stream, _ = self.stream(zmq.SUB, self.subs_addr, bind=True, identity=self.identity, subscribe=b"topic")
 
         # Attach handlers to the streams
-        self.frontend_stream.on_recv(BrokerHandler(self.frontend_stream, self.backend_stream, 
-                                                   self.stop))
+        brokerHandler = BrokerHandler(self.frontend_stream, self.backend_stream, 
+                                                   self.stop)
+        self.frontend_stream.on_recv(brokerHandler)
 
         # Attach handlers to the streams
-        self.backend_stream.on_recv(BrokerHandler(self.frontend_stream, self.backend_stream, 
-                                                   self.stop))
+        self.backend_stream.on_recv(brokerHandler)
 
         # Attach handlers to the streams
-        self.subscribe_stream.on_recv(self.callback)
-        # self.subscribe_stream.on_recv(BrokerHandler(self.frontend_stream, self.backend_stream, 
-        #                                           self.stop))
+        # Consumes data in the form of ['topic', 'msg_type', 'identity, 'payloads'....]
+        self.subscribe_stream.on_recv(brokerHandler)
 
     def run(self):
         """Sets up everything and starts the event loop."""

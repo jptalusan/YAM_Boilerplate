@@ -3,13 +3,15 @@ import numpy as np
 import uuid
 
 class Task(object):
-    
+    status_arr = ['None', 'Sent', 'Done', 'Error']
+
     def __init__(self, task_type, socket):
         self.payload = []
         self._id = str(uuid.uuid4())
         self._task_type = task_type
         self._socket = socket
         self._payload_count = 0
+        self._status = Task.status_arr[0]
 
     # TODO: This send method should probably in a different place
     # Payload:
@@ -55,6 +57,18 @@ class Task(object):
         else:
             self._payload_count -= 1
             return
+
+    def update_status(self, new_status):
+        # if new_status == 0:
+        #     status = 'None'
+        # elif new_status == 1:
+        #     status = 'Sent'
+        # elif new_status == 2:
+        #     status = 'Done'
+        # elif new_status == 3:
+        #     status = 'Error'
+            
+        self._status = Task.status_arr[new_status]
 
     def deconstruct_payload(self):
         pass

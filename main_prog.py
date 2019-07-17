@@ -12,6 +12,7 @@ current_seconds_time = lambda: int(round(time.time()))
 
 EXTRACT_QUERY= 'extract_query'
 TRAIN_QUERY = 'train_query'
+EXTRACT_TRAIN_QUERY = 'extract_train_query'
 CLASSIFY_QUERY = 'classify_query'
 
 WORKER_READY = 'worker_ready'
@@ -23,17 +24,19 @@ def client():
     broker_sock.connect('tcp://%s:%s' % (host, port))
 
     dict_req = {}
-    dict_req['database'] = 'both'
+    dict_req['database'] = 'acc'
     dict_req['model'] = 'RF'
     dict_req['train_method'] = 'DISTRIBUTED'
     dict_req['distribution_method'] = 'RND'
     dict_req['queried_time'] = current_seconds_time()
     dict_req['rows'] = 128
+    dict_req['users'] = [1, 3, 5] #[1, 3, 5, 6, 7, 8, 11, 14, 15, 16, 17, 19, 21, 22, 23, 25, 26, 27, 28, 29, 30]
     print(type(dict_req))
     dict_req = json.dumps(dict_req)
 
 #  must scalarize data ,unbalanced
-    broker_sock.send_multipart([encode(TRAIN_QUERY), encode(dict_req)])
+    broker_sock.send_multipart([encode(EXTRACT_TRAIN_QUERY), encode(dict_req)])
+    # broker_sock.send_multipart([encode(TRAIN_QUERY), encode(dict_req)])
     # broker_sock.send_multipart([encode(EXTRACT_QUERY), encode(dict_req)])
     # broker_sock.send_multipart([encode(CLASSIFY_QUERY), encode(dict_req)])
     try:

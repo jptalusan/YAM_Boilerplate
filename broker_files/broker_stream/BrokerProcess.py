@@ -1,5 +1,6 @@
 import zmq
 from .BrokerHandler import BrokerHandler
+from .SendHandler import SendHandler
 
 import sys
 sys.path.append('..')
@@ -47,10 +48,14 @@ class BrokerProcess(zp.ZmqProcess):
         # Attach handlers to the streams
         brokerHandler = BrokerHandler(self.frontend_stream, self.backend_stream, 
                                                    self.stop)
+
+        sendHandler = SendHandler(sender='Backend')
+
         self.frontend_stream.on_recv(brokerHandler)
 
         # Attach handlers to the streams
         self.backend_stream.on_recv(brokerHandler)
+        self.backend_stream.on_send(sendHandler.logger)
 
         # Attach handlers to the streams
         # Consumes data in the form of ['topic', 'msg_type', 'identity, 'payloads'....]

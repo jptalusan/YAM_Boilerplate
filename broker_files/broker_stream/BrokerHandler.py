@@ -53,7 +53,7 @@ class BrokerHandler(mh.RouterMessageHandler):
         self._stop()
 
     def status(self, *data):
-        print("Subs sent:{}".format(data))
+        print("Subs received messsage:{}".format(data))
         topic = decode(data[0])
         sender = decode(data[1])
         payload = json.loads(decode(data[2]))

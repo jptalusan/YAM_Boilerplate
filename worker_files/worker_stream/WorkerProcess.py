@@ -1,5 +1,6 @@
 import zmq
 from .WorkerHandler import WorkerHandler, ManiHandler, ExtractHandler, TrainHandler
+from .SendHandler import SendHandler
 
 import sys
 sys.path.append('..')
@@ -42,6 +43,11 @@ class WorkerProcess(zp.ZmqProcess):
                                                   self.mani_handler, 
                                                   self.extract_handler,
                                                   self.train_handler))
+
+        bakSendHandler = SendHandler(sender='Worker', recipient='Backend')
+        pubSendHandler = SendHandler(sender='Worker', recipient='Subscriber')
+        self.backend_stream.on_send(bakSendHandler.logger)
+        self.publish_stream.on_send(pubSendHandler.logger)
 
 
     def run(self):

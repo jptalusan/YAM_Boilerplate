@@ -1,5 +1,5 @@
 import zmq
-from .WorkerHandler import WorkerHandler, ManiHandler, ExtractHandler, TrainHandler
+from .WorkerHandler import WorkerHandler, ExtractHandler, TrainHandler
 from .SendHandler import SendHandler
 
 import sys
@@ -21,7 +21,6 @@ class WorkerProcess(zp.ZmqProcess):
         self.backend_stream = None
         self.publish_stream = None
 
-        self.mani_handler = ManiHandler()
         self.extract_handler = ExtractHandler()
         self.train_handler = TrainHandler()
 
@@ -40,7 +39,6 @@ class WorkerProcess(zp.ZmqProcess):
                                                   self.publish_stream,
                                                   self.stop, 
                                                 #   List of custom handlers here...
-                                                  self.mani_handler, 
                                                   self.extract_handler,
                                                   self.train_handler))
 

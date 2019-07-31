@@ -16,9 +16,11 @@ import pickle
 
 from sklearn.model_selection import train_test_split
 
+# Routing imports
+
 sys.path.append('..')
 
-NUMBER_OF_TRAINERS = 3
+NUMBER_OF_TRAINERS = 4
 
 # TODO: Should I separate functions not entirely related to brokerhandler? (Probably)
 # Like what i did with the workerhandler
@@ -222,11 +224,14 @@ class BrokerHandler(mh.RouterMessageHandler):
             if len(BrokerHandler.some_broker_task_queue) == 0:
                 return # No tasks remaining
             else:
+                print("Trying to send task to worker.")
                 # TODO: Probably not the best way to do it.
                 query = BrokerHandler.some_broker_task_queue[0]
                 print(query)
                 
                 for task in query._tasks:
+                    if len(BrokerHandler.workers.queue) == 0:
+                        break
                     if task._status == 'None':
                         addr = BrokerHandler.workers.next()
                         # TODO: Add some flag to the task that it is sent already
@@ -275,6 +280,28 @@ class BrokerHandler(mh.RouterMessageHandler):
         np_output = np.asarray(output)
         print("Aggregated data with shape: {}".format(np_output.shape))
         return np_output
+
+    # Routing Functions
+    def routing_query(self, *data):
+        print('routing_query()')
+
+        sender = decode(data[0])
+        json_str = decode(data[1])
+
+        q = Query(sender, json_str)
+        json_data = json.loads(json_str)
+
+        tasks = []
+        for user in json_data['users']:
+            task = self.generate_train_tasks_users(user, json_data['database'])
+            tasks.append(task)
+
+        [q.add_task_id(task._id) for task in tasks]
+        [q.add_task(task) for task in tasks]
+        BrokerHandler.some_broker_task_queue.append(q)
+        self.send_task_to_worker()
+
+        pass
 
     # TODO: Move send in Task.py to here
     def send_task(self, address):

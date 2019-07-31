@@ -45,17 +45,17 @@ class WorkerHandler(mh.DealerMessageHandler):
                                              encode(self._identity), 
                                              encode(payload)])
         
-    def __init__(self, identity, backend_stream, publish_stream, stop, mani_handler, extract_handler, train_handler):
+    def __init__(self, identity, backend_stream, publish_stream, stop, extract_handler, train_handler):
         # json_load is the element index of the msg_type
         super().__init__(json_load=0)
         # Instance variables
         self._backend_stream = backend_stream
         self._publish_stream = publish_stream
         self._stop = stop
-        self._mani_handler = mani_handler
         self._extract_handler = extract_handler
         self._train_handler = train_handler
         self._identity = identity
+        print("Worker Identity: {}".format(self._identity))
         self._under_load = False
 
         WorkerHandler.received_counter = 0
@@ -111,12 +111,12 @@ class WorkerHandler(mh.DealerMessageHandler):
         database = json_query['database']
         query_time = json_query['queried_time']
         print(user, model, query_time)
-
+        print(os.getcwd())
         # TODO: if multiple users are indicated, loop through all and extract and append and then train
-        
+        HAPT_dir = 'data/HAPT'
         if database == 'both':
-            acc_array = np.load('data/{}-user{}.pkl.npy'.format('acc', user))
-            gyr_array = np.load('data/{}-user{}.pkl.npy'.format('gyro', user))
+            acc_array = np.load('{}/{}-user{}.pkl.npy'.format(HAPT_dir, 'acc', user))
+            gyr_array = np.load('{}/{}-user{}.pkl.npy'.format(HAPT_dir, 'gyro', user))
             eh = ExtractHandler()
             extracted_np_array = eh.extract_both_features(acc_array, gyr_array, labeled=True)
             clf = self._train_handler.train_model(extracted_np_array)
@@ -124,7 +124,7 @@ class WorkerHandler(mh.DealerMessageHandler):
             print(clf)
 
         else:
-            np_array = np.load('data/{}-user{}.pkl.npy'.format(database, user))
+            np_array = np.load('{}/{}-user{}.pkl.npy'.format(HAPT_dir, database, user))
             eh = ExtractHandler()
             extracted_np_array = eh.extract_features(np_array, database, labeled=True)
             clf = self._train_handler.train_model(extracted_np_array)
@@ -205,15 +205,6 @@ class WorkerHandler(mh.DealerMessageHandler):
         print(confusion_matrix(y, y_pred))
         print(classification_report(y, y_pred))
 
-
-# TODO: Create a handler for each type of message for the broker
-class ManiHandler(object):
-
-    def make_mani(self, counter, *data_arr):
-        """Creates and returns a pong message."""
-        print("Make_mani got {}".format(data_arr))
-        WorkerHandler.received_counter += 1
-        return WorkerHandler.received_counter
 
 class ExtractHandler(object):
     def __init__(self):

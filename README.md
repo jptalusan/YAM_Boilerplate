@@ -12,6 +12,7 @@ This was born out of spite from my stupid code that took me 3 hours just to add 
 5. python main_prog.py  
 
 Sample application:  
+
 **Client**  
 1. 'task_count' determines the number of tasks you want to generate.  
 2. main_prog.py sends a query to the broker with the msg_type = 'test_ping_query'    
@@ -35,8 +36,18 @@ Sample application:
 14. At the same time, broker listens for heartbeats from the worker to see if they are still alive and purges if not  **(not yet implemented)**  
 
 # Adding new services  
-*To follow*
+* For simple services, you only need to modify 3 main files.  
+    1. WorkerHandler.py  
+    2. BrokerHandler.py  
+    3. main_prog.py  
+* main_prog.py is the client, so you need to setup the query to send to the broker here, similar to the ping() process.  
+* The **TEST_PING_QUERY** is the msg_type, so you need a corresponding function name in *BrokerHandler.py*  
+* In BrokerHandler.py, you need to add the function name with the msg_type and then handle the payload being passed by the client.  
+* Here you perform the **Query** and **Task** generations and you distribute it to the *Workers* depeding on the task scheduling algorithm you desire (not included)  
+* In *WorkerHandler.py* again you must create the function with the same name as your msg_type you used in **generate_ping_tasks()**  
+* This function performs necessary processing and publishes a message when done.  
+* This is received by the *BrokerHandler.py* for aggregation.  
 
 # References:  
 Basic architecture of the boilerplate is based on this zmq tutorial:  
-*https://stefan.sofa-rockers.org/2012/02/01/designing-and-testing-pyzmq-applications-part-1/*
+[Designing and testing pyzmq applications](https://stefan.sofa-rockers.org/2012/02/01/designing-and-testing-pyzmq-applications-part-1/)

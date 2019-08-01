@@ -2,6 +2,8 @@ import zmq
 import json
 from multiprocessing import Process
 import time
+import blosc
+import pickle
 
 host = 'localhost'
 port = 7000
@@ -10,53 +12,48 @@ decode = lambda x: x.decode('utf-8')
 encode = lambda x: x.encode('ascii')
 current_seconds_time = lambda: int(round(time.time()))
 
-EXTRACT_QUERY= 'extract_query'
-TRAIN_QUERY = 'train_query'
-CLASSIFY_QUERY = 'classify_query'
+def zip_and_pickle(obj, flags=0, protocol=-1):
+    """pickle an object, and zip the pickle before sending it"""
+    p = pickle.dumps(obj, protocol)
+    z = blosc.compress(p, typesize=8)
+    return z
 
-WORKER_READY = 'worker_ready'
+def unpickle_and_unzip(pickled):
+    unzipped = blosc.decompress(pickled)
+    unpickld = pickle.loads(unzipped)
+    return unpickld
 
-def client():
-    context = zmq.Context()
-    broker_sock = context.socket(zmq.DEALER)
-    broker_sock.identity = (u"Client-%s" % str(0).zfill(4)).encode('ascii')
-    broker_sock.connect('tcp://%s:%s' % (host, port))
-
-    dict_req = {}
-    dict_req['database'] = 'both'
-    dict_req['model'] = 'RF'
-    dict_req['train_method'] = 'DISTRIBUTED'
-    dict_req['distribution_method'] = 'RND'
-    dict_req['queried_time'] = current_seconds_time()
-    dict_req['rows'] = 128
-    print(type(dict_req))
-    dict_req = json.dumps(dict_req)
-
-#  must scalarize data ,unbalanced
-    broker_sock.send_multipart([encode(EXTRACT_QUERY), encode(dict_req)])
-    # broker_sock.send_multipart([encode(CLASSIFY_QUERY), encode(dict_req)])
-    try:
-        while True:
-            msg = broker_sock.recv_multipart()
-            print(msg)
-            if msg:
-                break
-    except zmq.ContextTerminated:
-      return
-
+# Query types
+TEST_PING_QUERY = 'test_ping_query'
 # Just to test if all the connections are working.
 def ping():
     context = zmq.Context()
     broker_sock = context.socket(zmq.DEALER)
     broker_sock.identity = (u"Client-%s" % str(0).zfill(4)).encode('ascii')
     broker_sock.connect('tcp://%s:%s' % (host, port))
-    broker_sock.send_multipart([b'test_ping_query', b'Ping'])
+
+    dict_req = {}
+    dict_req['task_count'] = 6
+    dict_req['task_sleep'] = 2
+    dict_req = json.dumps(dict_req)
+    
+    start = time.time()
+
+    broker_sock.send_multipart([encode(TEST_PING_QUERY), encode(dict_req)])
     print("Sent: Ping")
-    msg = broker_sock.recv_multipart()
-    resp = msg[0]
-    print("Received: {}".format(decode(resp)))
+
+    try:
+        while True:
+            msg = broker_sock.recv_multipart()
+            response = msg[0]
+            print("Received from broker:{}".format(unpickle_and_unzip(response)))
+            if msg:
+                elapsed = time.time() - start
+                print("Total time: {}".format(elapsed))
+                break
+    except zmq.ContextTerminated:
+        return
 
 if __name__ == '__main__':
-    # Process(target=client, args=()).start()
     Process(target=ping, args=()).start()
     

@@ -4,8 +4,17 @@ import blosc
 import numpy as np
 
 decode = lambda x: x.decode('utf-8')
-encode = lambda x: x.encode('ascii')
+# encode = lambda x: x.encode('ascii')
 current_seconds_time = lambda: int(round(time.time()))
+
+def encode(raw):
+    if isinstance(raw, list):
+        return zip_and_pickle(raw, protocol=2)
+    elif isinstance(raw, str):
+        return raw.encode('ascii')
+    elif isinstance(raw, np.ndarray):
+        return zip_and_pickle(raw)
+    return None
 
 def write_data_to_file(data, filename):
     file = open(filename,"a")

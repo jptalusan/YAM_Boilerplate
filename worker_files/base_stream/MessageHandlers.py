@@ -41,7 +41,7 @@ class DealerMessageHandler(object):
 
         """
         i = self._json_load
-        msg_type = decode(msg[i])
+        msg_type = decode(msg[i]).lower()
 
         # Rest of array is the message itself
         # del msg[i]

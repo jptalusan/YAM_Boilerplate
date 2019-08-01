@@ -73,10 +73,12 @@ class ZmqProcess(multiprocessing.Process):
             else:
                 port = sock.bind_to_random_port('tcp://%s' % host)
         else:
+            print("Debug:{}:{}".format(host, port))
             sock.connect('tcp://%s:%s' % (host, port))
 
         # Add a default subscription for SUB sockets
         if sock_type == zmq.SUB:
+            print("Subscribed to: {}".format(subscribe))
             sock.setsockopt(zmq.SUBSCRIBE, subscribe)
 
         # Create the stream and add the callback

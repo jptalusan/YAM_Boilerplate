@@ -12,8 +12,6 @@ import random
 import numpy as np
 import pickle
 
-from sklearn.model_selection import train_test_split
-
 sys.path.append('..')
 
 DEBUG_MAX_WORKERS = 3
@@ -40,14 +38,8 @@ class BrokerHandler(mh.RouterMessageHandler):
         self._stop = stop
         self.aggregated_data = {}
 
-        # TODO: STOP GAP to implement a workflow, change in future
-        self.last_response_received = ''
         BrokerHandler.some_broker_task_queue = []
-        # TODO: This is only for testing
-        BrokerHandler.client = ''
-
         self.alive_workers = []
-
 
     def plzdiekthxbye(self, *data):
         print("Received plzdiekthxbye")
@@ -65,20 +57,19 @@ class BrokerHandler(mh.RouterMessageHandler):
             
         print(topic, sender, task_id)
 
+        # Update the task queue that the task with task_id is done..
         for q in BrokerHandler.some_broker_task_queue:
             for task in q._tasks:
                 if task._id == task_id:
                     print("Found a match: {}".format(task._id))
                     task.update_status(2) #2 == Done
 
-                    # Adding data to the query_id dict key
+                    # Adding data to the aggregated_data dict with key query_id, for responding
                     if task._query_id in self.aggregated_data:
                         self.aggregated_data[task._query_id].append(published_data)
                     else:
                         self.aggregated_data[task._query_id] = []
                         self.aggregated_data[task._query_id].append(published_data)
-
-        # Update the task queue that the task with task_id is done..
 
         self.purge_done_queries_in_queue()
         self.worker_ready(data[1])
@@ -87,13 +78,29 @@ class BrokerHandler(mh.RouterMessageHandler):
     # If it receives, that the worker is not under load, maybe we can set it as ready
     def heartbeat(self, *data):
         topic = decode(data[0])
-        sender = decode(data[1])
-        print("Worker: {} is still alive.".format(sender))
-        self.alive_workers.append(sender)
+        sender = data[1]
+        payload = decode(data[2])
+        payload_json = json.loads(payload)
+        # Check the heartbeat if the worker is under load.
+        print("Worker: {} is still alive with payload:{}.".format(sender, payload))
 
-    def purge(self, workers):
-        # If not in alive_workers queue, remove from workers queue.
-        pass
+
+        # TODO: This has become ugly. But basically, adding last_alive data requires for the worker to exist in the queue
+        # Still not sure if this works 100%.
+        if decode(sender) in BrokerHandler.workers.queue:
+            last_alive = payload_json['sentAt']
+            BrokerHandler.workers.queue[decode(sender)].last_alive = last_alive
+        else:
+            # If the worker is not yet in the available list, but already sent heartbeat without load, set it to ready.
+            if not payload_json['under_load']:
+                self.worker_ready(sender)
+
+        self.alive_workers.append(decode(sender))
+
+    # WorkerQueue has its own purge
+    # def purge(self, workers):
+    #     # If not in alive_workers queue, remove from workers queue.
+    #     pass
 
     def error(self, *data):
         print("Error:{}".format(data))
@@ -104,7 +111,6 @@ class BrokerHandler(mh.RouterMessageHandler):
     Test functions for checking if the docker/middleware is working in terms of
     connectivity.
     '''
-
     def test_ping_query(self, *data):
         sender = decode(data[0])
         json_str = decode(data[1])
@@ -124,7 +130,7 @@ class BrokerHandler(mh.RouterMessageHandler):
     def generate_ping_tasks(self, sleep_time):
         dict_req = {}
         dict_req['task_sleep'] = sleep_time
-        dict_req['queried_time'] = current_seconds_time()
+        dict_req['queried_time'] = current_milli_time()
 
         t = Task(TEST_PING_TASK, self._backend_stream)
         t.add_payload(json.dumps(dict_req))
@@ -134,15 +140,15 @@ class BrokerHandler(mh.RouterMessageHandler):
         print("A worker is ready:{}".format(data))
         worker_addr = data[0]
 
-        # uncomment to use production
-        # BrokerHandler.workers.ready(Worker(worker_addr, b'', b''))
-        # self.send_task_to_worker()
-
-        if DEBUG_MAX_WORKERS == 0 or len(BrokerHandler.workers.queue) < DEBUG_MAX_WORKERS:
+        if __debug__ == 1:
             BrokerHandler.workers.ready(Worker(worker_addr, b'', b''))
             self.send_task_to_worker()
-        elif len(BrokerHandler.workers.queue) == DEBUG_MAX_WORKERS:
-            self.send_task_to_worker()
+        else:
+            if DEBUG_MAX_WORKERS == 0 or len(BrokerHandler.workers.queue) < DEBUG_MAX_WORKERS:
+                BrokerHandler.workers.ready(Worker(worker_addr, b'', b'', current_milli_time()))
+                self.send_task_to_worker()
+            elif len(BrokerHandler.workers.queue) == DEBUG_MAX_WORKERS:
+                self.send_task_to_worker()
 
     def purge_done_queries_in_queue(self):
         print("->purge_done_queries_in_queue()")
@@ -173,7 +179,6 @@ class BrokerHandler(mh.RouterMessageHandler):
             BrokerHandler.some_broker_task_queue.remove(dq) 
 
             # DEBUG
-            print("DONE DONE")
             [print(q) for q in BrokerHandler.donedone_queue]
 
     # This is a random task assignment, 

@@ -12,7 +12,7 @@ class WorkerQueue(object):
     def purge(self):
         """Look for & kill expired workers."""
         # t = time.time()
-        t = current_seconds_time()
+        t = current_milli_time()
         # print("Killing expired workers at time: %s" % t)
         expired = []
         for address, worker in self.queue.items():

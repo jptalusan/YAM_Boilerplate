@@ -2,6 +2,7 @@ from base_stream import MessageHandlers as mh
 import os
 import datetime
 import json
+import time
 import sys
 sys.path.append('..')
 from utils.Utils import *
@@ -51,7 +52,7 @@ class SendHandler(object):
                 data_row = "{},{},{},{}".format(self._recipient, 'worker_ready', time, len(data[0]))
                 myfile.write(data_row + '\n')
 
-            # [b'topic', b'status', b'Worker-0002', b'{"task_id": "a1072e6c-2847-4d41-90c7-fce7e0f26502", "createdAt": "2019-07-29 06:10:47", "under_load": false, "msg": "Worker is done training."}']
+            # [b'topic', b'status', b'Worker-0002', b'{"task_id": "a1072e6c-2847-4d41-90c7-fce7e0f26502", "createdAt": "1564730124243", "under_load": false, "msg": "Worker is done training."}']
             elif len(data) == 4:
                 topic = decode(data[0])
                 status = decode(data[1])

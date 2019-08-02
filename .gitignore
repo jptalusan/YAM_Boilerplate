@@ -131,7 +131,6 @@ data/
 
 .DS_Store
 
-test_data/
 *.pkl
 *.txt
 *.npy

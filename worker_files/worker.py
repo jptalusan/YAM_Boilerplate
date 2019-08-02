@@ -6,6 +6,7 @@ import time
 from datetime import datetime
 import json
 import threading
+from utils.Utils import *
 
 BROKER_HOST = os.environ['BROKER_HOST']
 BROKER_PORT = os.environ['BROKER_PORT']
@@ -15,7 +16,7 @@ PUBLISH_HOST = os.environ['PUBLISH_HOST']
 PUBLISH_PORT = os.environ['PUBLISH_PORT']
 
 def server_pub():
-    threading.Timer(30.0, server_pub).start()
+    threading.Timer(5.0, server_pub).start()
 
     addr=(PUBLISH_HOST, PUBLISH_PORT)
     identity="Worker-{}".format(ident)
@@ -30,8 +31,15 @@ def server_pub():
 
     socket.connect('tcp://%s:%s' % (host, port))
     time.sleep(3)
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    payload = json.dumps({"sentAt":now})
+    now = current_milli_time()
+
+    conf_json, status = read_json_data('logs', "{}-conf.lock".format(identity), ['under_load'])
+    if status:
+        under_load = conf_json['under_load']
+        payload = json.dumps({"sentAt":now, "under_load":under_load})
+    else:
+        payload = json.dumps({"sentAt":now})
+
     socket.send_multipart([b"topic", b"heartbeat", socket.identity, payload.encode('ascii')])
 
 if __name__ == "__main__":

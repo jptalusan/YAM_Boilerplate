@@ -40,6 +40,9 @@ class WorkerHandler(mh.DealerMessageHandler):
     # Write to lock/config file in memory, whether you are under load.
     def test_ping_task(self, *data):
         print("Received task from broker: {}".format(data))
+
+        write_json_data('logs', "{}-conf.lock".format(self._identity), {'under_load':True})
+
         sender = decode(data[0])
         task_id = decode(data[1])
 
@@ -61,15 +64,17 @@ class WorkerHandler(mh.DealerMessageHandler):
         print("Task time:{}, task payload:{}".format(query_time, payload_value))
 
         # Some processing
-        time.sleep(payload_value)
+        time.sleep(payload_value + 6)
         processed_payload = payload_value * 100
 
-        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        now = current_milli_time()
         msg = "Worker is done training."
         payload = json.dumps({"task_id": task_id, 
                               "createdAt":now,
                               "msg":msg,
                               "processed_payload":processed_payload})
+
+        write_json_data('logs', "{}-conf.lock".format(self._identity), {'under_load':False})
 
         self._publish_stream.send_multipart([b"topic", 
                                         b"status", 

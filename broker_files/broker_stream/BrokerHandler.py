@@ -16,7 +16,7 @@ from sklearn.model_selection import train_test_split
 
 sys.path.append('..')
 
-DEBUG_MAX_WORKERS = 0
+DEBUG_MAX_WORKERS = 3
 
 # TODO: Should I separate functions not entirely related to brokerhandler? (Probably)
 # Like what i did with the workerhandler
@@ -26,6 +26,9 @@ class BrokerHandler(mh.RouterMessageHandler):
 
     some_broker_task_queue = []
     workers = WorkerQueue()
+
+    # For DEBUG
+    donedone_queue = []
 
     # Place variables here that i plan on reusing like the arrays etc...
 
@@ -44,6 +47,7 @@ class BrokerHandler(mh.RouterMessageHandler):
         BrokerHandler.client = ''
 
         self.alive_workers = []
+
 
     def plzdiekthxbye(self, *data):
         print("Received plzdiekthxbye")
@@ -80,6 +84,7 @@ class BrokerHandler(mh.RouterMessageHandler):
         self.worker_ready(data[1])
 
     # Not necessarily ready to work. Just not dead
+    # If it receives, that the worker is not under load, maybe we can set it as ready
     def heartbeat(self, *data):
         topic = decode(data[0])
         sender = decode(data[1])
@@ -153,6 +158,9 @@ class BrokerHandler(mh.RouterMessageHandler):
                 done_queue.append(q)
                 print("Queue:{} is done.".format(q._id))
 
+        # Debug
+        BrokerHandler.donedone_queue.extend(done_queue)
+
         for dq in done_queue:
             print("Removing queue:{}".format(dq._id))
 
@@ -163,6 +171,10 @@ class BrokerHandler(mh.RouterMessageHandler):
             dq.send_response(output)
 
             BrokerHandler.some_broker_task_queue.remove(dq) 
+
+            # DEBUG
+            print("DONE DONE")
+            [print(q) for q in BrokerHandler.donedone_queue]
 
     # This is a random task assignment, 
     # but it is load balanced because of a worker queue

@@ -26,14 +26,16 @@ def unpickle_and_unzip(pickled):
 # Query types
 TEST_PING_QUERY = 'test_ping_query'
 # Just to test if all the connections are working.
+# Maybe I should define the QUERY_ID here instead of in the broker.
 def ping():
     context = zmq.Context()
     broker_sock = context.socket(zmq.DEALER)
     broker_sock.identity = (u"Client-%s" % str(0).zfill(4)).encode('ascii')
     broker_sock.connect('tcp://%s:%s' % (host, port))
 
+    TASK_COUNT = 6
     dict_req = {}
-    dict_req['task_count'] = 6
+    dict_req['task_count'] = TASK_COUNT
     dict_req['task_sleep'] = 2
     dict_req = json.dumps(dict_req)
     
@@ -45,9 +47,9 @@ def ping():
     try:
         while True:
             msg = broker_sock.recv_multipart()
-            response = msg[0]
-            print("Received from broker:{}".format(unpickle_and_unzip(response)))
-            if msg:
+            response = unpickle_and_unzip(msg[0])
+            print("Received from broker:{}".format(response))
+            if len(response) == TASK_COUNT:
                 elapsed = time.time() - start
                 print("Total time: {}".format(elapsed))
                 break

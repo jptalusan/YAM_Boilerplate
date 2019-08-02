@@ -21,25 +21,22 @@ class SendHandler(object):
         # Need to take note of the size, time and sender/receiver, which stream etc...
         print("MSGstream sent Log: {}:{}:{}".format(dir(stream), msg, status))
         print("Type:{}".format(type(msg)))
-
     
     def logger(self, msg, status):
         # Need to take note of the size, time and sender/receiver, which stream etc...
         if __debug__ == 0:
             print("MSG sent Log: {}:{}".format(msg, status))
 
-        file = "logs/{}".format(self._sender)
         if not os.path.exists(os.path.join(os.getcwd(), 'logs')):
             os.mkdir(os.path.join(os.path.join(os.getcwd(), 'logs')))
         logs_dir = os.path.join(os.getcwd(), 'logs')
         logs_path = os.path.join(logs_dir, '{}-sentmsgs.log'.format(self._sender))
         try:
-            file = open(logs_path, 'r')
+            open(logs_path, 'r')
         except IOError:
-            file = open(logs_path, 'w')
+            open(logs_path, 'w')
 
         self.write_data(logs_path, msg)
-
 
     def write_data(self, file_path, data):
         if os.stat(file_path).st_size == 0:

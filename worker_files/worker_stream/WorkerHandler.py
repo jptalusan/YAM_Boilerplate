@@ -37,6 +37,7 @@ class WorkerHandler(mh.DealerMessageHandler):
         """Just calls :meth:`WorkerProcess.stop`."""
         self._stop()
 
+    # Write to lock/config file in memory, whether you are under load.
     def test_ping_task(self, *data):
         print("Received task from broker: {}".format(data))
         sender = decode(data[0])

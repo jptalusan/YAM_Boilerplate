@@ -35,6 +35,7 @@ def server_pub():
     socket.send_multipart([b"topic", b"heartbeat", socket.identity, payload.encode('ascii')])
 
 if __name__ == "__main__":
+    # TODO: Create a lock/config file, in memory, get data every time you send heartbeat. (if under load)
     server_pub()
     wp.WorkerProcess(bind_addr=(BROKER_HOST, BROKER_PORT), 
                      publish_addr=(PUBLISH_HOST, PUBLISH_PORT), 

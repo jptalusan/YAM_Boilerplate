@@ -20,8 +20,6 @@ from sklearn.model_selection import train_test_split
 
 sys.path.append('..')
 
-NUMBER_OF_TRAINERS = 4
-
 # TODO: Should I separate functions not entirely related to brokerhandler? (Probably)
 # Like what i did with the workerhandler
 class BrokerHandler(mh.RouterMessageHandler):
@@ -79,7 +77,7 @@ class BrokerHandler(mh.RouterMessageHandler):
         print("Worker: {} is still alive.".format(sender))
         self.alive_workers.append(sender)
 
-    def purge(workers):
+    def purge(self, workers):
         # If not in alive_workers queue, remove from workers queue.
         pass
 

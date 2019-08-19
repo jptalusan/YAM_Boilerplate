@@ -59,15 +59,6 @@ class Task(object):
             return
 
     def update_status(self, new_status):
-        # if new_status == 0:
-        #     status = 'None'
-        # elif new_status == 1:
-        #     status = 'Sent'
-        # elif new_status == 2:
-        #     status = 'Done'
-        # elif new_status == 3:
-        #     status = 'Error'
-            
         self._status = Task.status_arr[new_status]
 
     def deconstruct_payload(self):

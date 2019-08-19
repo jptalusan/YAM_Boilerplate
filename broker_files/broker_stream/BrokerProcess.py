@@ -29,9 +29,6 @@ class BrokerProcess(zp.ZmqProcess):
         self.backend_stream = None
         self.subscribe_stream = None
 
-    def callback(self, data):
-        print("Subs callback:{}".format(data))
-
     def setup(self):
         """Sets up PyZMQ and creates all streams."""
         super().setup()

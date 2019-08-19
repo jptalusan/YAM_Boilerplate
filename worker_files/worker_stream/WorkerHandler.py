@@ -27,7 +27,6 @@ from utils.constants import *
 from base_stream import MessageHandlers as mh
 from feature_extraction import database_specific, feature_extraction_separate, feature_extraction
 
-
 class WorkerHandler(mh.DealerMessageHandler):
     """Handels messages arrvinge at the PongProc’s REP stream."""
     # Debug

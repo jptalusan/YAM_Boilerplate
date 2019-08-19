@@ -69,3 +69,10 @@ class SendHandler(object):
 
                 data_row = "{},{},{},{}".format(self._recipient, task_id, time, total_bytes)
                 myfile.write(data_row + '\n')
+            # Catch all: recipient, time, total_bytes
+            else:
+                total_bytes = 0
+                for m in data:
+                    total_bytes += len(m)
+                data_row = "{}, {}, {}".format(self._recipient, time, total_bytes)
+                myfile.write(data_row + '\n')

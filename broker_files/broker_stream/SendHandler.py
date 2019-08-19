@@ -55,3 +55,10 @@ class SendHandler(object):
 
                 data_row = "{},{},{},{},{}".format(recipient, msg_type, msg_id, time, total_bytes)
                 myfile.write(data_row + '\n')
+            # Catch all: recipient, time, total_bytes
+            else:
+                total_bytes = 0
+                for d in data:
+                    total_bytes += len(d)
+                data_row = "{},{},{},{},{}".format(recipient, time, total_bytes)
+                myfile.write(data_row + '\n')

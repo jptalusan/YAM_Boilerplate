@@ -11,8 +11,6 @@ class RouterMessageHandler(object):
         self._json_load = json_load
 
     def __call__(self, msg):
-        # if __debug__ == 1:
-        #     print("Broker:MessageHandler:{}".format(msg))
         """
         Gets called when a messages is received by the stream this handlers is
         registered at. *msg* is a list as return by
@@ -28,13 +26,8 @@ class RouterMessageHandler(object):
         # Get the actual message handler and call it
         if msg_type.startswith('_'):
             raise AttributeError('%s starts with an "_"' % msg_type)
-            
+
         getattr(self, msg_type)(*msg)
-        # try:
-        #     getattr(self, msg_type)(*msg)
-        # except AttributeError as e:
-        #     print("Attribute Errror: {}".format(e))
-        #     getattr(self, "error")(*msg)
 
 class DealerMessageHandler(object):
     def __init__(self, json_load=-1):

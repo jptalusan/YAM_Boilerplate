@@ -141,7 +141,7 @@ class BrokerHandler(mh.RouterMessageHandler):
         worker_addr = data[0]
 
         if __debug__ == 1:
-            BrokerHandler.workers.ready(Worker(worker_addr, b'', b''))
+            BrokerHandler.workers.ready(Worker(worker_addr, b'', b'', current_milli_time()))
             self.send_task_to_worker()
         else:
             if DEBUG_MAX_WORKERS == 0 or len(BrokerHandler.workers.queue) < DEBUG_MAX_WORKERS:

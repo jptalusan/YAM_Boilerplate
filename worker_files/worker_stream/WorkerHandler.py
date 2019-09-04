@@ -34,26 +34,21 @@ class WorkerHandler(mh.DealerMessageHandler):
     received_counter = 0
     some_task_queue = []
 
-    def send_heartbeat(self):
-        # Add payload to see if something is processing
-        # threading.Timer(2.0, self.send_heartbeat).start()
-        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        payload = json.dumps({"sentAt":now, "under_load":self._under_load})
-        self._publish_stream.send_multipart([b"topic", 
-                                             b"heartbeat", 
-                                             encode(self._identity), 
-                                             encode(payload)])
-        
-    def __init__(self, identity, backend_stream, publish_stream, stop, extract_handler, train_handler):
+    '''
+        SEC001: Main Functions
+    '''
+    def __init__(self, identity, base_process): # identity, backend_stream, publish_stream, stop, extract_handler, train_handler):
         # json_load is the element index of the msg_type
         super().__init__(json_load=0)
         # Instance variables
-        self._backend_stream = backend_stream
-        self._publish_stream = publish_stream
-        self._stop = stop
-        self._extract_handler = extract_handler
-        self._train_handler = train_handler
-        self._identity = identity
+        self._base_process    = base_process
+        self._backend_stream  = base_process.backend_stream
+        self._publish_stream  = base_process.publish_stream
+        self._extract_handler = base_process.extract_handler
+        self._train_handler   = base_process.train_handler
+
+        self._identity        = identity
+
         print("Worker Identity: {}".format(self._identity))
         self._under_load = False
 
@@ -65,15 +60,35 @@ class WorkerHandler(mh.DealerMessageHandler):
 
         self._backend_stream.send_multipart([encode(WORKER_READY)])
 
+    def send_heartbeat(self):
+        # Add payload to see if something is processing
+        # threading.Timer(2.0, self.send_heartbeat).start()
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        payload = json.dumps({"sentAt":now, "under_load":self._under_load})
+        self._publish_stream.send_multipart([b"topic", 
+                                             b"heartbeat", 
+                                             encode(self._identity), 
+                                             encode(payload)])
+        
+    '''
+        SEC002: General Handler Functions
+    '''
     def plzdiekthxbye(self, *data):
         print("Stopping:WorkerProcess")
         """Just calls :meth:`WorkerProcess.stop`."""
-        self._stop()
+        self._base_process.stop()
+        return
 
+    '''
+        SEC003: Test Handler Functions
+    '''
     def test_ping_task(self, *data):
         print("Received task from broker.")
         self._backend_stream.send_multipart([b"test_ping_response"])
 
+    '''
+        SEC004: Service-specific Handler Functions
+    '''
     def extract_task(self, *data):
         sender = decode(data[0])
         data_arr = decode(data[1])

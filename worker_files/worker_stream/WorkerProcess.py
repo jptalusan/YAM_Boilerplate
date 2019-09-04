@@ -21,8 +21,10 @@ class WorkerProcess(zp.ZmqProcess):
         self.backend_stream = None
         self.publish_stream = None
 
+        # TODO: Do these need to be here?
         self.extract_handler = ExtractHandler()
         self.train_handler = TrainHandler()
+        return
 
     def setup(self):
         """Sets up PyZMQ and creates all streams."""
@@ -33,27 +35,27 @@ class WorkerProcess(zp.ZmqProcess):
         self.backend_stream, _ = self.stream(zmq.DEALER, self.bind_addr, bind=False, identity=self.identity)
         self.publish_stream, _ = self.stream(zmq.PUB, self.publish_addr, bind=False, identity=self.identity)
 
-        # Attach handlers to the streams
-        self.backend_stream.on_recv(WorkerHandler(self.identity,
-                                                  self.backend_stream, 
-                                                  self.publish_stream,
-                                                  self.stop, 
-                                                #   List of custom handlers here...
-                                                  self.extract_handler,
-                                                  self.train_handler))
-
+        # Create the handlers
+        self.backend_stream.on_recv(WorkerHandler(self.identity, self))
+        #                                           self.backend_stream, 
+        #                                           self.publish_stream,
+        #                                           self.stop, 
+        #                                         #   List of custom handlers here...
+        #                                           self.extract_handler,
+        #                                           self.train_handler))
         bakSendHandler = SendHandler(sender='Worker', recipient='Backend')
         pubSendHandler = SendHandler(sender='Worker', recipient='Subscriber')
+
+        # Attach handlers to the streams
         self.backend_stream.on_send(bakSendHandler.logger)
         self.publish_stream.on_send(pubSendHandler.logger)
 
-
-    def run(self):
-        """Sets up everything and starts the event loop."""
-        self.setup()
-        self.loop.start()
+        return
 
     def stop(self):
-        print("Stopping {}.".format(self.identity))
         """Stops the event loop."""
-        self.loop.stop()
+        # Override the ZmqProcess.stop() to print identity
+        print("Stopping {}.".format(self.identity))
+        super().stop()
+        return
+

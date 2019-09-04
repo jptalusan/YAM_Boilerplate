@@ -18,6 +18,7 @@ class ZmqProcess(multiprocessing.Process):
 
         self.loop = None
         """PyZMQ's event loop (:class:`~zmq.eventloop.ioloop.IOLoop`)."""
+        return
 
     def setup(self):
         """
@@ -26,6 +27,7 @@ class ZmqProcess(multiprocessing.Process):
         """
         self.context = zmq.Context()
         self.loop = ioloop.IOLoop.instance()
+        return
 
     def stream(self, sock_type, addr, bind, callback=None, subscribe=b'', identity=None):
         """
@@ -87,5 +89,18 @@ class ZmqProcess(multiprocessing.Process):
             stream.on_recv(callback)
 
         return stream, int(port)
+
+    def run(self):
+        """Sets up everything and starts the event loop."""
+        ### Note: setup() can be overridden when this class is extended
+        self.setup()
+        self.loop.start()
+        return
+
+    def stop(self):
+        """Stops the event loop."""
+        print("Stopping.")
+        self.loop.stop()
+        return
 
 

@@ -3,7 +3,9 @@ services:
   worker-0000:
     build: ./worker_files/
     volumes: 
-      - ./worker_files/:/usr/src/app
+      - ./worker_files/:/usr/src/app:z
+      - ./common/utils/:/usr/src/app/utils:z
+      - ./common/base_stream/:/usr/src/app/base_stream:z
     environment: 
       - PYTHONUNBUFFERED=1
       - WORKER_ID=0000
@@ -18,7 +20,9 @@ services:
   worker-0001:
     build: ./worker_files/
     volumes: 
-      - ./worker_files/:/usr/src/app
+      - ./worker_files/:/usr/src/app:z
+      - ./common/utils/:/usr/src/app/utils:z
+      - ./common/base_stream/:/usr/src/app/base_stream:z
     environment: 
       - PYTHONUNBUFFERED=1
       - WORKER_ID=0001
@@ -33,7 +37,9 @@ services:
   worker-0002:
     build: ./worker_files/
     volumes: 
-      - ./worker_files/:/usr/src/app
+      - ./worker_files/:/usr/src/app:z
+      - ./common/utils/:/usr/src/app/utils:z
+      - ./common/base_stream/:/usr/src/app/base_stream:z
     environment: 
       - PYTHONUNBUFFERED=1
       - WORKER_ID=0002
@@ -53,7 +59,9 @@ services:
       - "8000:8000"
       - "9000:9000"
     volumes:
-      - ./broker_files:/usr/src/app
+      - ./broker_files:/usr/src/app:z
+      - ./common/utils/:/usr/src/app/utils:z
+      - ./common/base_stream/:/usr/src/app/base_stream:z
     environment: 
       - PYTHONUNBUFFERED=1
     env_file: 
@@ -65,7 +73,7 @@ services:
   influxdb:
     image: influxdb:1.7.3-alpine
     volumes:
-      - ./data/influxdb:/var/lib/influxdb
+        - ./data/influxdb:/var/lib/influxdb:z
     ports:
       - "8086:8086"
     environment: 
@@ -75,3 +83,4 @@ services:
 
 networks:
   network_test_bed:
+

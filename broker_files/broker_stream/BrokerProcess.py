@@ -29,41 +29,32 @@ class BrokerProcess(zp.ZmqProcess):
         self.backend_stream = None
         self.subscribe_stream = None
 
+        return
+
     def setup(self):
         """Sets up PyZMQ and creates all streams."""
+
+        # This setup() function overrides the one in ZmqProcess by default, so
+        #   we have to call the superclass' setup() function
         super().setup()
 
         # Create the stream and add the message handler
-        self.frontend_stream, _ = self.stream(zmq.ROUTER, self.bind_addr, bind=True, identity=self.identity)
-
-        # Create the stream and add the message handler
-        self.backend_stream, _ = self.stream(zmq.ROUTER, self.backend_addr, bind=True, identity=self.identity)
-
-        # Create the stream and add the message handler
+        self.frontend_stream, _  = self.stream(zmq.ROUTER, self.bind_addr, bind=True, identity=self.identity)
+        self.backend_stream, _   = self.stream(zmq.ROUTER, self.backend_addr, bind=True, identity=self.identity)
         self.subscribe_stream, _ = self.stream(zmq.SUB, self.subs_addr, bind=True, identity=self.identity, subscribe=b"topic")
 
-        # Attach handlers to the streams
-        brokerHandler = BrokerHandler(self.frontend_stream, self.backend_stream, 
-                                                   self.stop)
-
+        # Create the handlers
         sendHandler = SendHandler(sender='Backend')
+        # Also, pass this BrokerProcess to the BrokerHandler as an argument
+        brokerHandler = BrokerHandler(self.identity, self)
 
         self.frontend_stream.on_recv(brokerHandler)
 
         # Attach handlers to the streams
         self.backend_stream.on_recv(brokerHandler)
         self.backend_stream.on_send(sendHandler.logger)
-
-        # Attach handlers to the streams
-        # Consumes data in the form of ['topic', 'msg_type', 'identity, 'payloads'....]
+        # Subscribe: Consumes data in the form: ['topic', 'msg_type','identity, 'payloads'....]
         self.subscribe_stream.on_recv(brokerHandler)
 
-    def run(self):
-        """Sets up everything and starts the event loop."""
-        self.setup()
-        self.loop.start()
+        return
 
-    def stop(self):
-        """Stops the event loop."""
-        print("Stopping.")
-        self.loop.stop()

@@ -79,6 +79,6 @@ def ping():
     print("Received: {}".format(decode(resp)))
 
 if __name__ == '__main__':
-    Process(target=client, args=()).start()
-    # Process(target=ping, args=()).start()
+    # Process(target=client, args=()).start()
+    Process(target=ping, args=()).start()
     

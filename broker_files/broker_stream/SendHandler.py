@@ -14,11 +14,13 @@ class SendHandler(object):
         print("SendHandler.__init__()")
         # If you need the other streams, you can pass it here.
         self._sender = sender
+        return
 
     def stream_logger(self, stream, msg, status):
         # Need to take note of the size, time and sender/receiver, which stream etc...
         print("MSGstream sent Log: {}:{}:{}".format(dir(stream), msg, status))
         print("Type:{}".format(type(msg)))
+        return
     
     def logger(self, msg, status):
         # Need to take note of the size, time and sender/receiver, which stream etc...
@@ -35,6 +37,7 @@ class SendHandler(object):
             open(logs_path, 'w')
 
         self.write_data(logs_path, msg)
+        return
 
     def write_data(self, file_path, data):
         if os.stat(file_path).st_size == 0:
@@ -55,10 +58,14 @@ class SendHandler(object):
 
                 data_row = "{},{},{},{},{}".format(recipient, msg_type, msg_id, time, total_bytes)
                 myfile.write(data_row + '\n')
+
             # Catch all: recipient, time, total_bytes
             else:
                 total_bytes = 0
                 for d in data:
                     total_bytes += len(d)
-                data_row = "{},{},{},{},{}".format(recipient, time, total_bytes)
+
+                data_row = "{},{},{}".format(str(data), time, total_bytes)
                 myfile.write(data_row + '\n')
+
+        return

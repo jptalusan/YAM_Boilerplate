@@ -38,11 +38,15 @@ class PubHandler(mh.PubMessageHandler):
         self._frontend_stream = frontend_stream
         self._backend_stream = backend_stream
         self._stop = stop
+        return
         
     def status(self, *data):
         print("Subs sent:{}".format(data))
+        return
 
     def error(self, *data):
         print("Recived error, worker should just be ready again.")
         sender = decode(data[0])
         self.worker_ready(sender)
+        return
+

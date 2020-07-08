@@ -1,10 +1,11 @@
 zmq
-influxdb
+# influxdb
 blosc
-pandas
-numpy
-scipy
-spectrum
+# pandas
+# numpy
+# scipy
+# spectrum
 tornado
-sklearn
-pandas
+redis
+# sklearn
+# pandas

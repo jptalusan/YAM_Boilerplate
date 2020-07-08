@@ -2,7 +2,6 @@ from base_stream import MessageHandlers as mh
 import os
 import datetime
 import json
-import time
 import sys
 sys.path.append('..')
 from utils.Utils import *
@@ -22,20 +21,21 @@ class SendHandler(object):
         # Need to take note of the size, time and sender/receiver, which stream etc...
         print("MSGstream sent Log: {}:{}:{}".format(dir(stream), msg, status))
         print("Type:{}".format(type(msg)))
-    
+
     def logger(self, msg, status):
         # Need to take note of the size, time and sender/receiver, which stream etc...
         if __debug__ == 0:
             print("MSG sent Log: {}:{}".format(msg, status))
 
+        file = "logs/{}".format(self._sender)
         if not os.path.exists(os.path.join(os.getcwd(), 'logs')):
             os.mkdir(os.path.join(os.path.join(os.getcwd(), 'logs')))
         logs_dir = os.path.join(os.getcwd(), 'logs')
         logs_path = os.path.join(logs_dir, '{}-sentmsgs.log'.format(self._sender))
         try:
-            open(logs_path, 'r')
+            file = open(logs_path, 'r')
         except IOError:
-            open(logs_path, 'w')
+            file = open(logs_path, 'w')
 
         self.write_data(logs_path, msg)
 
@@ -47,30 +47,37 @@ class SendHandler(object):
         with open(file_path, "a") as myfile:
             # time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
             time = current_milli_time()
-            # [b'worker_ready']
-            if len(data) == 1:
-                data_row = "{},{},{},{}".format(self._recipient, 'worker_ready', time, len(data[0]))
-                myfile.write(data_row + '\n')
-
-            # [b'topic', b'status', b'Worker-0002', b'{"task_id": "a1072e6c-2847-4d41-90c7-fce7e0f26502", "createdAt": "1564730124243", "under_load": false, "msg": "Worker is done training."}']
-            elif len(data) == 4:
-                topic = decode(data[0])
-                status = decode(data[1])
-                sender = decode(data[2])
-                json_obj = json.loads(decode(data[3]))
-                task_id = json_obj['task_id']
-
-                total_bytes = 0
-                if isinstance(data, list):
-                    for m in data:
-                        total_bytes += len(m)
-
-                data_row = "{},{},{},{}".format(self._recipient, task_id, time, total_bytes)
-                myfile.write(data_row + '\n')
-            # Catch all: recipient, time, total_bytes
-            else:
-                total_bytes = 0
+            total_bytes = 0
+            if isinstance(data, list):
                 for m in data:
                     total_bytes += len(m)
-                data_row = "{}, {}, {}".format(self._recipient, time, total_bytes)
+                data_row = f'{self._recipient},{time},{total_bytes}'
                 myfile.write(data_row + '\n')
+
+            # [b'worker_ready']
+            if len(data) == 1:
+                data_row = f'{self._recipient},{time},{len(data[0])}'
+                myfile.write(data_row + '\n')
+
+            # # [b'topic', b'status', b'Worker-0002', b'{"task_id": "a1072e6c-2847-4d41-90c7-fce7e0f26502", "createdAt": "2019-07-29 06:10:47", "under_load": false, "msg": "Worker is done training."}']
+            # elif len(data) == 4:
+            #     topic = decode(data[0])
+            #     status = decode(data[1])
+            #     sender = decode(data[2])
+            #     json_obj = json.loads(decode(data[3]))
+            #     task_id = json_obj['task_id']
+
+            #     total_bytes = 0
+            #     if isinstance(data, list):
+            #         for m in data:
+            #             total_bytes += len(m)
+
+            #     data_row = "{},{},{},{}".format(self._recipient, task_id, time, total_bytes)
+            #     myfile.write(data_row + '\n')
+            # # Catch all: recipient, time, total_bytes
+            # else:
+            #     total_bytes = 0
+            #     for m in data:
+            #         total_bytes += len(m)
+            #     data_row = "{}, {}, {}".format(self._recipient, time, total_bytes)
+            #     myfile.write(data_row + '\n')

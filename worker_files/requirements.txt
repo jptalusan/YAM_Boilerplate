@@ -1,13 +1,3 @@
-# Worker
-influxdb
-blosc
-pandas
-numpy
-scipy
-spectrum
-sklearn
-psutil
-joblib
 zmq
+blosc
 tornado
-pandas

@@ -2,4 +2,3 @@ pytest
 mock
 zmq
 tornado
-blosc

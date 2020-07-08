@@ -1,10 +1,7 @@
 FROM python:3.6
 
 # ZMQ REP Server
-EXPOSE 9000
-EXPOSE 8000
-EXPOSE 7000
-EXPOSE 6000
+EXPOSE 7000 8000 9000
 
 RUN mkdir -p /usr/src/app
 WORKDIR /usr/src/app

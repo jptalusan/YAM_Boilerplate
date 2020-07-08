@@ -1,0 +1,39 @@
+version: "3.5"
+services:
+  redis:
+    image: "redis:6.0.5-alpine"
+    command: redis-server
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./redis/redis-data:/var/lib/redis
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf
+    environment:
+      - REDIS_REPLICATION_MODE=master
+    networks: 
+      - network_test_bed
+
+  broker:
+    build: ./broker_files/
+    ports:
+      - "7000:7000"
+      - "8000:8000"
+      - "9000:9000"
+    volumes:
+      - ./broker_files:/usr/src/app:z
+      - ./common/utils/:/usr/src/app/utils:z
+      - ./common/base_stream/:/usr/src/app/base_stream:z
+    environment: 
+      - PYTHONUNBUFFERED=1
+    env_file: 
+      - hosts.env
+      - constants.env
+    depends_on: 
+      - redis
+    networks: 
+      - network_test_bed
+
+networks:
+  network_test_bed:
+    name: network_test_bed
+    driver: bridge

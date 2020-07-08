@@ -1,82 +1,89 @@
-import sys
-import time
-import os
-import json
-from datetime import datetime
-import numpy as np
-
-sys.path.append('..')
 from utils.Utils import *
 from utils.constants import *
 from base_stream import MessageHandlers as mh
+import zmq
+import json
 
-class WorkerHandler(mh.DealerMessageHandler):
+class WorkerHandler(mh.RouterMessageHandler):
     """Handels messages arrvinge at the PongProc’s REP stream."""
-    # Debug
-    # Class Variables
-    received_counter = 0
-    some_task_queue = []
+    worker_dict = {'Worker-0000': 6000,
+                   'Worker-0001': 6001,
+                   'Worker-0002': 6002}
 
-    def __init__(self, identity, backend_stream, publish_stream, stop):
-        # json_load is the element index of the msg_type
-        super().__init__(json_load=0)
+    '''
+        SEC001: Main Functions
+    '''
+    def __init__(self, identity, base_process): # identity, backend_stream, publish_stream, stop, extract_handler, train_handler):
+        # json_load is the element index of the msg_type (differs with socket type)
+        super().__init__(json_load=1)
         # Instance variables
-        self._backend_stream = backend_stream
-        self._publish_stream = publish_stream
-        self._stop = stop
-        self._identity = identity
+        self._base_process    = base_process
+        self._backend_stream  = base_process.backend_stream
 
-        WorkerHandler.received_counter = 0
-        WorkerHandler.some_task_queue = []
+        self._identity        = identity
 
+        print("Worker Identity: {}".format(self._identity))
+
+
+        self.context = zmq.Context()
         print("WorkerHandler:__init__")
-        self._backend_stream.send_multipart([encode(WORKER_READY)])
-
+        self._peer_sockets = {}
+        for worker, port in self.worker_dict.items():
+            if worker == self._identity:
+                continue
+            temp_sock = self.context.socket(zmq.DEALER)
+            print(f'Registering peer: {worker}:{port}')
+            temp_sock.identity = encode(self._identity)
+            temp_sock.connect('tcp://%s:%s' % (worker, port))
+            
+            self._peer_sockets[worker] = temp_sock
+        
+    '''
+        SEC002: General Handler Functions
+    '''
     def plzdiekthxbye(self, *data):
         print("Stopping:WorkerProcess")
         """Just calls :meth:`WorkerProcess.stop`."""
-        self._stop()
+        self._base_process.stop()
+        return
 
-    # Write to lock/config file in memory, whether you are under load.
-    def test_ping_task(self, *data):
-        print("Received task from broker: {}".format(data))
-
-        write_json_data('logs', "{}-conf.lock".format(self._identity), {'under_load':True})
-
+    '''
+        SEC003: Test Handler Functions
+    '''
+    def test_ping_query(self, *data):
         sender = decode(data[0])
-        task_id = decode(data[1])
+        print(f'Received {decode(data[1])} from {sender}')
+        self.test_ping_response(sender, 'Pong')
+        return
+    
+    def test_ping_response(self, *data):
+        sender = data[0]
+        payload = data[1]
+        print("Sending response.")
+        self._backend_stream.send_multipart([encode(sender), encode(payload)])
+        return
 
-        payload_count = int(decode(data[2]))
-        print("Paylod count: {}".format(payload_count))
-        for i in range(payload_count):
-            load_type = decode(data[3 + (i * 2)])
-            if load_type == 'String' or load_type == 'Bytes':
-                load = decode(data[3 + (i * 2) + 1])
-                print("Type: {}, load: {}".format(load_type, load))
-                json_query = json.loads(load) #Assumming its always json?
-            elif load_type == 'ZippedPickleNdArray':
-                load = unpickle_and_unzip(data[3 + (i * 2) + 1])
-                print("Type: {}, load shape: {}".format(load_type, load.shape))
-                narr = load
+    def pipeline_ping_query(self, *data):
+        print(f'Received first step: {data}.')
+        sender = decode(data[0])
+        payload = json.loads(decode(data[1]))
+        print(type(payload))
+        pipeline = payload['pipeline']
+        print(f'Pipeline before: {pipeline}')
+        current = pipeline.pop(0)
+        print(f'current: {current}')
+        print(f'Pipeline after: {pipeline}')
+        # time.sleep(0.2)
+        if len(pipeline) != 0:
+            payload = json.dumps({"pipeline":pipeline})
+            self._peer_sockets[pipeline[0]].send_multipart([b'pipeline_ping_query', encode(payload)])
+        else:
+            print("Sending the result back to sender.")
+            # Need to get the address of the client here.
+            self._backend_stream.send_multipart([encode('Client-0000'), encode('PONG')])
 
-        payload_value = json_query['task_sleep']
-        query_time = json_query['queried_time']
-        print("Task time:{}, task payload:{}".format(query_time, payload_value))
+        return
 
-        # Some processing
-        time.sleep(payload_value + 6)
-        processed_payload = payload_value * 100
-
-        now = current_milli_time()
-        msg = "Worker is done training."
-        payload = json.dumps({"task_id": task_id, 
-                              "createdAt":now,
-                              "msg":msg,
-                              "processed_payload":processed_payload})
-
-        write_json_data('logs', "{}-conf.lock".format(self._identity), {'under_load':False})
-
-        self._publish_stream.send_multipart([b"topic", 
-                                        b"status", 
-                                        encode(self._identity), 
-                                        encode(payload)])
+    '''
+        SEC004: Service-specific Handler Functions
+    '''

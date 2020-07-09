@@ -18,6 +18,17 @@ encode = lambda x: x.encode('ascii')
 current_seconds_time = lambda: int(round(time.time()))
 
 # Just to test if all the connections are working.
+def reintroduce_workers():
+    context = zmq.Context()
+    broker_sock = context.socket(zmq.DEALER)
+    broker_sock.identity = (u"Client-%s" % str(0).zfill(4)).encode('ascii')
+    broker_sock.connect('tcp://%s:%s' % (host, 7000))
+    broker_sock.send_multipart([b'reintroduce_workers', b'Ping'])
+    print("Sent: Ping")
+    msg = broker_sock.recv_multipart()
+    resp = msg[0]
+    print("Received: {}".format(decode(resp)))
+
 def heartbeat_demo():
     identity=(u"Worker-%s" % str(random.randint(1000, 9999))).encode('ascii')
 
@@ -85,11 +96,11 @@ def pipeline_ping():
     print(f'Received {msg} at time {timestamp}')
 
 if __name__ == '__main__':
-    # print(1594288375.573805 - 1594288375.5618188)
+    reintroduce_workers()
     # Process(target=pipeline_ping, args=()).start()
 
     # For demo on heartbeat
     # for _ in range(5):
     #     heartbeat_demo()
-    query_services()
+    # query_services()
     

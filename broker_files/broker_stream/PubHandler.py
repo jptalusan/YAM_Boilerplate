@@ -18,7 +18,7 @@ class PubHandler(mh.PubMessageHandler):
     # Place variables here that i plan on reusing like the arrays etc...
 
     def __init__(self, frontend_stream, backend_stream, stop):
-        print("BrokerHandler.__init__()")
+        print("PubHandler.__init__()")
         super().__init__(json_load=1)
         self._frontend_stream = frontend_stream
         self._backend_stream = backend_stream

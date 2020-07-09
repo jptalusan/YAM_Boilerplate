@@ -24,7 +24,7 @@ class SendHandler(object):
     
     def logger(self, msg, status):
         # Need to take note of the size, time and sender/receiver, which stream etc...
-        if __debug__ == 0:
+        if __debug__ == 1:
             print("MSG sent Log: {}:{}".format(msg, status))
 
         if not os.path.exists(os.path.join(os.getcwd(), 'logs')):

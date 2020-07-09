@@ -41,8 +41,13 @@ class BrokerProcess(zp.ZmqProcess):
         super().setup()
 
         # Create the stream and add the message handler
+        # frontend connects to user queries or control messages from the outside
         self.frontend_stream, _     = self.stream(zmq.ROUTER, self.bind_addr, bind=True, identity=self.identity)
-        self.backend_stream, _      = self.stream(zmq.ROUTER, self.backend_addr, bind=True, identity=self.identity)
+
+        # Sends messages to workers
+        self.backend_stream, _      = self.stream(zmq.PUB, self.backend_addr, bind=True, identity=self.identity)
+
+        # Receives messages from workers
         self.heartbeat_stream, _    = self.stream(zmq.PULL, self.heartbeat_addr, bind=True, identity=self.identity)
 
         # Create the handlers

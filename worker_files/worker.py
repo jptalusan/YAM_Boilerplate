@@ -17,8 +17,11 @@ service = os.environ['SERVICE']
 HEARTBEAT_HOST = 'broker'
 HEARTBEAT_PORT = os.environ['HEARTBEAT_PORT']
 
+BROKER_HOST = 'broker'
+BROKER_PORT = os.environ['BACKEND_PORT']
+
 def heartbeat(context):
-    threading.Timer(60.0, heartbeat, [context]).start()
+    threading.Timer(20.0, heartbeat, [context]).start()
 
     addr=(HEARTBEAT_HOST, HEARTBEAT_PORT)
     identity="Worker-{}".format(ident)
@@ -46,4 +49,5 @@ if __name__ == "__main__":
     context = zmq.Context()
     heartbeat(context)
     wp.WorkerProcess(bind_addr=('*', ROUTER_PORT), 
+                     broker_addr=(BROKER_HOST, BROKER_PORT),
                      identity="Worker-{}".format(ident)).start()

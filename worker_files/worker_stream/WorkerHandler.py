@@ -54,7 +54,7 @@ class WorkerHandler(mh.RouterMessageHandler):
         SEC003: Test Handler Functions
     '''
     def populate_neighbors(self, *data):
-        print("Populating neighbors...")
+        print(f"Populating neighbors with {data}")
 
     def test_ping_query(self, *data):
         sender = decode(data[0])

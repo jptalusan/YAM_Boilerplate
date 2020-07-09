@@ -14,7 +14,7 @@ class PullHandler(mh.PullMessageHandler):
     # Place variables here that i plan on reusing like the arrays etc...
 
     def __init__(self):
-        print("BrokerHandler.__init__()")
+        print("PullHandler.__init__()")
         super().__init__(json_load=0)
         self._r =  redis.StrictRedis(host='redis', port=6379, db=0, decode_responses=True)
         return

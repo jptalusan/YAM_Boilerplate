@@ -3,8 +3,8 @@ import os
 import datetime
 import json
 import sys
-sys.path.append('..')
 from utils.Utils import *
+import time
 
 ident = os.environ['WORKER_ID']
 current_milli_time = lambda: int(round(time.time() * 1000))
@@ -46,17 +46,17 @@ class SendHandler(object):
        
         with open(file_path, "a") as myfile:
             # time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
-            time = current_milli_time()
+            timestamp = time.time()
             total_bytes = 0
             if isinstance(data, list):
                 for m in data:
                     total_bytes += len(m)
-                data_row = f'{self._recipient},{time},{total_bytes}'
+                data_row = f'{self._recipient},{timestamp},{data}'
                 myfile.write(data_row + '\n')
 
             # [b'worker_ready']
             if len(data) == 1:
-                data_row = f'{self._recipient},{time},{len(data[0])}'
+                data_row = f'{self._recipient},{timestamp},{len(data[0])}'
                 myfile.write(data_row + '\n')
 
             # # [b'topic', b'status', b'Worker-0002', b'{"task_id": "a1072e6c-2847-4d41-90c7-fce7e0f26502", "createdAt": "2019-07-29 06:10:47", "under_load": false, "msg": "Worker is done training."}']

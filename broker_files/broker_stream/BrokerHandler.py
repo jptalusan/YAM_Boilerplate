@@ -56,6 +56,11 @@ class BrokerHandler(mh.RouterMessageHandler):
             Test functions for checking if the docker/middleware is working 
             in terms of connectivity.
     '''
+    def query_services(self, *data):
+        BrokerHandler.client = sender
+        self._frontend_stream.send_multipart([encode(BrokerHandler.client), encode('HELLO')])
+        return
+        
     def test_ping_query(self, *data):
         sender = decode(data[0])
         BrokerHandler.client = sender

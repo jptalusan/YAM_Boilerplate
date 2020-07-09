@@ -11,6 +11,7 @@ class RouterMessageHandler(object):
         self._json_load = json_load
 
     def __call__(self, msg):
+        # print(f'@{msg}@')
         """
         Gets called when a messages is received by the stream this handlers is
         registered at. *msg* is a list as return by
@@ -23,9 +24,15 @@ class RouterMessageHandler(object):
         # Rest of array is the message itself
         del msg[i]
 
+        if not msg_type:
+            msg_type = 'error'
+            msg.append("Message is empty.")
+            # raise AttributeError('Message is empty' % msg_type)
         # Get the actual message handler and call it
         if msg_type.startswith('_'):
-            raise AttributeError('%s starts with an "_"' % msg_type)
+            msg_type = 'error'
+            msg.append('%s starts with an "_"' % msg_type)
+            # raise AttributeError('%s starts with an "_"' % msg_type)
 
         getattr(self, msg_type)(*msg)
 

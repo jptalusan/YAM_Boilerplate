@@ -47,6 +47,10 @@ class WorkerHandler(mh.RouterMessageHandler):
         self._base_process.stop()
         return
 
+    def error(self, *data):
+        print(f"Received message from {decode(data[0])}, with error: {data[-1]}!")
+        return
+
     '''
         SEC003: Test Handler Functions
     '''
@@ -64,23 +68,20 @@ class WorkerHandler(mh.RouterMessageHandler):
         return
 
     def pipeline_ping_query(self, *data):
-        print(f'Received first step: {data}.')
+        print(f'Received: {data}.')
         sender = decode(data[0])
         payload = json.loads(decode(data[1]))
-        print(type(payload))
         pipeline = payload['pipeline']
-        print(f'Pipeline before: {pipeline}')
+        timestamp = payload['time']
         current = pipeline.pop(0)
-        print(f'current: {current}')
-        print(f'Pipeline after: {pipeline}')
-        # time.sleep(0.2)
+        complete_payload = {'time': timestamp, 'pipeline': pipeline}
         if len(pipeline) != 0:
-            payload = json.dumps({"pipeline":pipeline})
+            payload = json.dumps(complete_payload)
             self._peer_sockets[pipeline[0]].send_multipart([b'pipeline_ping_query', encode(payload)])
         else:
-            print("Sending the result back to sender.")
             # Need to get the address of the client here.
-            self._backend_stream.send_multipart([encode('Client-0000'), encode('PONG')])
+            self._backend_stream.send_multipart([encode('Client-0000'), encode(str(timestamp)), encode('PONG')])
+            print("Sending the result back to sender.")
 
         return
 

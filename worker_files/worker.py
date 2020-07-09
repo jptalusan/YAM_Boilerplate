@@ -16,7 +16,7 @@ HEARTBEAT_HOST = 'broker'
 HEARTBEAT_PORT = os.environ['HEARTBEAT_PORT']
 
 def heartbeat(context):
-    threading.Timer(5.0, heartbeat, [context]).start()
+    threading.Timer(60.0, heartbeat, [context]).start()
 
     addr=(HEARTBEAT_HOST, HEARTBEAT_PORT)
     identity="Worker-{}".format(ident)

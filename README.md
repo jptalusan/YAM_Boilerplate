@@ -8,7 +8,7 @@
 * Perform a pipeline of tasks from Worker 1 to 0 to 2 and back to the client (user_query.py).  
 * Has Redis as a database in the broker to store the heartbeats sent by the workers.  
 
-**Steps for the middleware testbed:** 
+**Steps for the middleware testbed:**  
 1. docker-compose build  
 2. docker-compose -f docker-compose-broker.yml build  
  

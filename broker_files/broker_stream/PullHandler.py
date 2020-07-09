@@ -16,21 +16,20 @@ class PullHandler(mh.PullMessageHandler):
     def __init__(self):
         print("BrokerHandler.__init__()")
         super().__init__(json_load=0)
-        # self._frontend_stream = frontend_stream
-        # self._backend_stream = backend_stream
-        # self._stop = stop
-        self._r =  redis.Redis(host='redis', port=6379, db=0)
+        self._r =  redis.StrictRedis(host='redis', port=6379, db=0, decode_responses=True)
         return
         
     def heartbeat(self, *data):
+        # self._r.flushdb()
+
         print("DATA:", data)
         sender = decode(data[0])
         payload = json.loads(decode(data[1]))
         print(f"heartbeat received: {payload} from {sender}")
         worker = {f"worker:{sender}": payload }
         self._r.hmset(sender, payload)
-        print("HGETALL", self._r.hgetall(f"{sender}"))
-        print("KEYS", self._r.keys())
+        for worker in self._r.scan_iter(match='Worker-*'):
+            print(f'Worker: {worker}')
 
         return
 

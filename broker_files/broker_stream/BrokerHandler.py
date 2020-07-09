@@ -2,6 +2,7 @@ from base_stream import MessageHandlers as mh
 from utils.constants import *
 from utils.Utils import *
 import sys
+import json
 # Routing imports
 
 sys.path.append('..')
@@ -26,6 +27,7 @@ class BrokerHandler(mh.RouterMessageHandler):
         self._backend_stream    = base_process.backend_stream
         self._heartbeat_stream  = base_process.heartbeat_stream
         self._identity          = identity
+        self._r                 = base_process.redis
 
         # TODO: This is only for testing
         BrokerHandler.client = ''
@@ -57,8 +59,18 @@ class BrokerHandler(mh.RouterMessageHandler):
             in terms of connectivity.
     '''
     def query_services(self, *data):
+        sender = decode(data[0])
         BrokerHandler.client = sender
-        self._frontend_stream.send_multipart([encode(BrokerHandler.client), encode('HELLO')])
+
+        payload = {}
+        for worker in self._r.scan_iter(match='Worker-*'):
+            # print(worker)
+            
+            # print("HGETALL", self._r.hgetall(f"{worker}"))
+            payload[worker] = self._r.hgetall(worker)
+        # print(payload)
+
+        self._frontend_stream.send_multipart([encode(BrokerHandler.client), encode(json.dumps(payload))])
         return
         
     def test_ping_query(self, *data):
@@ -74,3 +86,6 @@ class BrokerHandler(mh.RouterMessageHandler):
         print("Sending response.")
         self._frontend_stream.send_multipart([encode(BrokerHandler.client), encode(payload)])
         return
+
+    def reintroduce_workers(self, *data):
+        print("Introducing workers to each other...")

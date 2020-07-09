@@ -3,6 +3,7 @@ from .BrokerHandler import BrokerHandler
 from .SendHandler import SendHandler
 from .PullHandler import PullHandler
 from base_stream import ZmqProcess as zp
+import redis
 
 # https://gist.github.com/abhinavsingh/6378134
 # TODO: Change names
@@ -27,6 +28,8 @@ class BrokerProcess(zp.ZmqProcess):
         self.backend_stream     = None
         # Discovery
         self.heartbeat_stream   = None
+
+        self.redis = redis.StrictRedis(host='redis', port=6379, db=0, decode_responses=True)
 
         return
 

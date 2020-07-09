@@ -26,6 +26,7 @@ services:
       - PYTHONUNBUFFERED=1
       - WORKER_ID=0000
       - PORT=6000
+      - SERVICE='DEMO'
     # depends_on: 
     #   - redis
     env_file:
@@ -46,6 +47,7 @@ services:
       - PYTHONUNBUFFERED=1
       - WORKER_ID=0001
       - PORT=6001
+      - SERVICE='DEMO'
     # depends_on: 
     #   - redis
     env_file:
@@ -66,6 +68,7 @@ services:
       - PYTHONUNBUFFERED=1
       - WORKER_ID=0002
       - PORT=6002
+      - SERVICE='DEMO'
     # depends_on: 
     #   - redis
     env_file:

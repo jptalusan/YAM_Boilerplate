@@ -12,6 +12,8 @@ from utils.Utils import *
 ROUTER_PORT = os.environ['PORT']
 ident = os.environ['WORKER_ID']
 
+service = os.environ['SERVICE']
+
 HEARTBEAT_HOST = 'broker'
 HEARTBEAT_PORT = os.environ['HEARTBEAT_PORT']
 
@@ -27,13 +29,15 @@ def heartbeat(context):
 
     socket = context.socket(zmq.PUSH)
     socket.identity = (u"%s" % identity).encode('ascii')
-
     socket.connect('tcp://%s:%s' % (host, port))
     time.sleep(1)
+
     now = current_seconds_time()
     payload = json.dumps({"sentAt":now,
-                        #   "identity": decode(socket.identity), 
-                          "port": ROUTER_PORT})
+                          "service": service, 
+                          "port": ROUTER_PORT,
+                          "x": 0,
+                          "y": 0})
 
     print(f'Sending heartbeat: {payload}')
     socket.send_multipart([b"heartbeat", socket.identity, encode(payload)])

@@ -24,7 +24,6 @@ class WorkerHandler(mh.RouterMessageHandler):
 
         print("Worker Identity: {}".format(self._identity))
 
-
         self.context = zmq.Context()
         print("WorkerHandler:__init__")
         self._peer_sockets = {}
@@ -54,6 +53,9 @@ class WorkerHandler(mh.RouterMessageHandler):
     '''
         SEC003: Test Handler Functions
     '''
+    def populate_neighbors(self, *data):
+        print("Populating neighbors...")
+
     def test_ping_query(self, *data):
         sender = decode(data[0])
         print(f'Received {decode(data[1])} from {sender}')

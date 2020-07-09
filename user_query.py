@@ -2,6 +2,7 @@ import zmq
 import json
 from multiprocessing import Process
 import time
+import random
 
 # https://stackoverflow.com/questions/39163872/zeromq-advantages-of-the-router-dealer-pattern
 
@@ -17,6 +18,25 @@ encode = lambda x: x.encode('ascii')
 current_seconds_time = lambda: int(round(time.time()))
 
 # Just to test if all the connections are working.
+def heartbeat_demo():
+    identity=(u"Worker-%s" % str(random.randint(1000, 9999))).encode('ascii')
+
+    context = zmq.Context()
+    socket = context.socket(zmq.PUSH)
+    socket.identity = identity
+    socket.connect('tcp://%s:%s' % (host, 8000))
+    time.sleep(1)
+
+    now = current_seconds_time()
+    payload = json.dumps({"sentAt":now,
+                          "service": 'DEMO', 
+                          "port": random.randint(1000, 9999),
+                          "x": 0,
+                          "y": 0})
+
+    print(f'{identity}: sending heartbeat: {payload}')
+    socket.send_multipart([b"heartbeat", identity, encode(payload)])
+
 def query_services():
     context = zmq.Context()
     broker_sock = context.socket(zmq.DEALER)
@@ -53,15 +73,23 @@ def pipeline_ping():
 
     timestamp = time.time()
     payload = json.dumps({"time": timestamp, "pipeline":['Worker-0001', 'Worker-0000', 'Worker-0002']})
-    receiver.send_multipart([b'pipeline_ping_query', payload.encode('ascii')])
+    receiver.send_multipart([b'pipeline_ping_query', payload.encode('ascii')], flags = zmq.DONTWAIT)
     print(f"Sent: Ping at {timestamp}")
 
     receiver2 = context.socket(zmq.DEALER)
     receiver2.identity = receiver.identity
     receiver2.connect('tcp://%s:%s' % (host, 6002))
     msg = receiver2.recv_multipart()
+
+    timestamp = time.time()
     print(f'Received {msg} at time {timestamp}')
 
 if __name__ == '__main__':
-    Process(target=query_services, args=()).start()
+    # print(1594288375.573805 - 1594288375.5618188)
+    # Process(target=pipeline_ping, args=()).start()
+
+    # For demo on heartbeat
+    # for _ in range(5):
+    #     heartbeat_demo()
+    query_services()
     

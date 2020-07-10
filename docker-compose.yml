@@ -1,19 +1,6 @@
 version: "3.5"
 services:
 
-  # redis:
-  #   image: "redis:6.0.5-alpine"
-  #   command: redis-server
-  #   ports:
-  #     - "6379:6379"
-  #   volumes:
-  #     - ./redis/redis-data:/var/lib/redis
-  #     - ./redis/redis.conf:/usr/local/etc/redis/redis.conf
-  #   environment:
-  #     - REDIS_REPLICATION_MODE=master
-  #   networks: 
-  #       - network_test_bed
-
   worker-0000:
     build: ./worker_files/
     volumes: 
@@ -27,8 +14,6 @@ services:
       - WORKER_ID=0000
       - PORT=6000
       - SERVICE='DEMO'
-    # depends_on: 
-    #   - redis
     env_file:
       - hosts.env
       - constants.env
@@ -48,8 +33,6 @@ services:
       - WORKER_ID=0001
       - PORT=6001
       - SERVICE='DEMO'
-    # depends_on: 
-    #   - redis
     env_file:
       - hosts.env
       - constants.env
@@ -69,8 +52,6 @@ services:
       - WORKER_ID=0002
       - PORT=6002
       - SERVICE='DEMO'
-    # depends_on: 
-    #   - redis
     env_file:
       - hosts.env
       - constants.env

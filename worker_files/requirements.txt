@@ -1,3 +1,4 @@
 zmq
 blosc
 tornado
+redis

@@ -2,6 +2,7 @@ import zmq
 from .WorkerHandler import WorkerHandler
 from .SendHandler import SendHandler
 from base_stream import ZmqProcess as zp
+import redis
 
 class WorkerProcess(zp.ZmqProcess):
     """
@@ -17,6 +18,8 @@ class WorkerProcess(zp.ZmqProcess):
 
         self.backend_stream = None
         self.broker_stream = None
+
+        self.redis = redis.StrictRedis(host='redis', port=6379, db=0, decode_responses=True)
         return
 
     def setup(self):

@@ -4,8 +4,9 @@ from utils.Utils import *
 import json
 import redis
 import threading
+import os
 
-
+TIMEOUT = float(os.environ['TIMEOUT'])
 # TODO: Should I separate functions not entirely related to brokerhandler? (Probably)
 # Like what i did with the workerhandler
 
@@ -31,14 +32,14 @@ class PullHandler(mh.PullMessageHandler):
     # pumba kill yaml_master_worker-0000_1
     def timeout(self):
         print("Checking timeout")
-        threading.Timer(20.0, self.timeout, []).start()
+        threading.Timer(TIMEOUT/2, self.timeout, []).start()
         current_time = current_seconds_time()
         for worker in self._r.scan_iter(match='Worker-*'):
             data = self._r.hgetall(worker)
             last_beat = data['sentAt']
             last_seen = current_time - int(last_beat)
             print(worker, last_seen)
-            if last_seen > 20:
+            if last_seen > TIMEOUT:
                 print(f'{worker} is dead')
                 self._r.hdel(worker, *data.keys())
         

@@ -20,11 +20,13 @@ HEARTBEAT_PORT = os.environ['HEARTBEAT_PORT']
 BROKER_HOST = 'broker'
 BROKER_PORT = os.environ['BACKEND_PORT']
 
+TIMEOUT = float(os.environ['TIMEOUT'])
+
 X_COORD = os.environ['X']
 Y_COORD = os.environ['Y']
 
 def heartbeat(context):
-    threading.Timer(20.0, heartbeat, [context]).start()
+    threading.Timer(TIMEOUT/2, heartbeat, [context]).start()
 
     addr=(HEARTBEAT_HOST, HEARTBEAT_PORT)
     identity="Worker-{}".format(ident)

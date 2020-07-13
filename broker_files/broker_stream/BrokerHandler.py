@@ -64,11 +64,7 @@ class BrokerHandler(mh.RouterMessageHandler):
 
         payload = {}
         for worker in self._r.scan_iter(match='Worker-*'):
-            # print(worker)
-            
-            # print("HGETALL", self._r.hgetall(f"{worker}"))
             payload[worker] = self._r.hgetall(worker)
-        # print(payload)
 
         self._frontend_stream.send_multipart([encode(BrokerHandler.client), encode(json.dumps(payload))])
         return
@@ -97,12 +93,9 @@ class BrokerHandler(mh.RouterMessageHandler):
         for worker in self._r.scan_iter(match='Worker-*'):
             payload[worker] = self._r.hgetall(worker)
             workers.append(worker)
-            print(worker)
 
-        # print("YES")
-        # self._backend_stream.send_multipart([encode('broker'), encode('populate_neighbors'), encode(json.dumps({"payload":"BOO"}))])
-        for worker in workers:
-            self._backend_stream.send_multipart([encode('broker'), encode('populate_neighbors'), encode(json.dumps(payload))])
+        print(f'Worker list: {workers}')
+        self._backend_stream.send_multipart([encode('broker'), encode('populate_neighbors'), encode(json.dumps(payload))])
 
         self._frontend_stream.send_multipart([encode(BrokerHandler.client), encode("Done reintroducing...")])
         print("Done reintroducing...")

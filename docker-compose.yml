@@ -14,11 +14,14 @@ services:
       - WORKER_ID=0000
       - PORT=6000
       - SERVICE='DEMO'
+      - X=0
+      - Y=0
     env_file:
       - hosts.env
       - constants.env
     networks: 
       - network_test_bed
+    restart: on-failure
 
   worker-0001:
     build: ./worker_files/
@@ -33,11 +36,14 @@ services:
       - WORKER_ID=0001
       - PORT=6001
       - SERVICE='DEMO'
+      - X=0
+      - Y=1
     env_file:
       - hosts.env
       - constants.env
     networks: 
       - network_test_bed
+    restart: on-failure
 
   worker-0002:
     build: ./worker_files/
@@ -52,11 +58,14 @@ services:
       - WORKER_ID=0002
       - PORT=6002
       - SERVICE='DEMO'
+      - X=1
+      - Y=0
     env_file:
       - hosts.env
       - constants.env
     networks: 
       - network_test_bed
+    restart: on-failure
 
 networks:
   network_test_bed:

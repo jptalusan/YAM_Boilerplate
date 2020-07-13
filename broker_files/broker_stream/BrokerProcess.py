@@ -61,7 +61,7 @@ class BrokerProcess(zp.ZmqProcess):
         self.backend_stream.on_recv(brokerHandler)
         self.backend_stream.on_send(sendHandler.logger)
 
-        pullHandler = PullHandler()
+        pullHandler = PullHandler(self)
         self.heartbeat_stream.on_recv(pullHandler)
 
         return

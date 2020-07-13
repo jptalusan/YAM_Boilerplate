@@ -20,6 +20,9 @@ HEARTBEAT_PORT = os.environ['HEARTBEAT_PORT']
 BROKER_HOST = 'broker'
 BROKER_PORT = os.environ['BACKEND_PORT']
 
+X_COORD = os.environ['X']
+Y_COORD = os.environ['Y']
+
 def heartbeat(context):
     threading.Timer(20.0, heartbeat, [context]).start()
 
@@ -39,10 +42,10 @@ def heartbeat(context):
     payload = json.dumps({"sentAt":now,
                           "service": service, 
                           "port": ROUTER_PORT,
-                          "x": 0,
-                          "y": 0})
+                          "x": X_COORD,
+                          "y": Y_COORD})
 
-    print(f'Sending heartbeat: {payload}')
+    # print(f'Sending heartbeat: {payload}')
     socket.send_multipart([b"heartbeat", socket.identity, encode(payload)])
     
 if __name__ == "__main__":

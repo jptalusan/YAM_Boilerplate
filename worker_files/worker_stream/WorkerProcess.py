@@ -19,7 +19,8 @@ class WorkerProcess(zp.ZmqProcess):
         self.backend_stream = None
         self.broker_stream = None
 
-        self.redis = redis.StrictRedis(host='redis', port=6379, db=0, decode_responses=True)
+        self.redis = redis.StrictRedis(host='redis', port=6379, db=1, decode_responses=True)
+        self.redis.flushdb()
         return
 
     def setup(self):

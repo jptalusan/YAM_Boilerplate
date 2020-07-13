@@ -3,6 +3,8 @@ from utils.constants import *
 from utils.Utils import *
 import json
 import redis
+import threading
+
 
 # TODO: Should I separate functions not entirely related to brokerhandler? (Probably)
 # Like what i did with the workerhandler
@@ -20,7 +22,25 @@ class PullHandler(mh.PullMessageHandler):
         self._r.flushdb()
 
         self._backend_stream = base_process.backend_stream
+
+        self._timeout_processor = threading.Thread(target=self.timeout, args = ())
+        self._timeout_processor.start()
         return
+
+    # Use pumba to kill containers..
+    # pumba kill yaml_master_worker-0000_1
+    def timeout(self):
+        print("Checking timeout")
+        threading.Timer(20.0, self.timeout, []).start()
+        current_time = current_seconds_time()
+        for worker in self._r.scan_iter(match='Worker-*'):
+            data = self._r.hgetall(worker)
+            last_beat = data['sentAt']
+            last_seen = current_time - int(last_beat)
+            print(worker, last_seen)
+            if last_seen > 20:
+                print(f'{worker} is dead')
+                self._r.hdel(worker, *data.keys())
         
     def heartbeat(self, *data):
         # print("DATA:", data)

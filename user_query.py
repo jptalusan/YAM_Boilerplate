@@ -60,11 +60,11 @@ def query_services():
     resp = msg[0]
     print("Received: {}".format(decode(resp)))
 
-def ping():
+def ping(PORT):
     context = zmq.Context()
     broker_sock = context.socket(zmq.DEALER)
     broker_sock.identity = (u"Client-%s" % str(0).zfill(4)).encode('ascii')
-    broker_sock.connect('tcp://%s:%s' % (host, port))
+    broker_sock.connect('tcp://%s:%s' % (host, PORT))
     broker_sock.send_multipart([b'test_ping_query', b'Ping'])
     print("Sent: Ping")
     msg = broker_sock.recv_multipart()
@@ -98,10 +98,31 @@ def pipeline_ping():
     print(f'Time elapsed: {received - timestamp}')
     print()
 
+def pipeline_async_ping():
+    # How do i just listen to all ports?
+    context = zmq.Context()
+
+    host = 'localhost'
+    port = 6001
+
+    receiver = context.socket(zmq.DEALER)
+    receiver.identity = (u"Client-%s" % str(0).zfill(4)).encode('ascii')
+    receiver.connect('tcp://%s:%s' % (host, port))
+
+    timestamp = time.time()
+    payload = json.dumps({"time": timestamp, "pipeline":['Worker-0001', 'Worker-0000', 'Worker-0002']})
+    receiver.send_multipart([b'pipeline_ping_query', payload.encode('ascii')], flags = zmq.DONTWAIT)
+    print(f"Sent: Ping at {timestamp} with payload: {payload}")
+
 if __name__ == '__main__':
+    ping(6003)
+
     # reintroduce_workers()
 
     Process(target=pipeline_ping, args=()).start()
+
+    # for i in {1..20}; do echo $i; python user_query.py; done
+    # Process(target=pipeline_async_ping, args=()).start()
 
     # For demo on heartbeat
     # for _ in range(5):

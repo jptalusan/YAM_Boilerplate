@@ -21,7 +21,7 @@ services:
       - constants.env
     networks: 
       - network_test_bed
-    restart: on-failure
+    restart: always
 
   worker-0001:
     build: ./worker_files/
@@ -43,7 +43,7 @@ services:
       - constants.env
     networks: 
       - network_test_bed
-    restart: on-failure
+    restart: always
 
   worker-0002:
     build: ./worker_files/
@@ -65,7 +65,7 @@ services:
       - constants.env
     networks: 
       - network_test_bed
-    restart: on-failure
+    restart: always
 
 networks:
   network_test_bed:

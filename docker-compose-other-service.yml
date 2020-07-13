@@ -1,0 +1,33 @@
+version: "3.5"
+services:
+
+  worker-0003:
+    build: ./other_worker_files/
+    volumes: 
+      - ./other_worker_files/:/usr/src/app:z
+      - ./common/utils/:/usr/src/app/utils:z
+      - ./common/base_stream/:/usr/src/app/base_stream:z
+    ports:
+      - "6003:6003"
+    environment: 
+      - PYTHONUNBUFFERED=1
+      - WORKER_ID=0003
+      - PORT=6003
+      - SERVICE='OTHER'
+      - X=1
+      - Y=1
+    env_file:
+      - hosts.env
+      - constants.env
+    networks: 
+      - network_test_bed
+    restart: always
+    command:
+      - 'python3'
+      - '-u'
+      - '/usr/src/app/worker.py'
+
+networks:
+  network_test_bed:
+    name: network_test_bed
+    external: true

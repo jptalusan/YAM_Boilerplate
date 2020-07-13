@@ -138,4 +138,8 @@ data/
 *.joblib
 *.zip
 *.log
+
+# ignore other services
+# docker-compose-other-service.yml
+# other_worker_files/
 # End of https://www.gitignore.io/api/python

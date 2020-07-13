@@ -4,6 +4,9 @@ from base_stream import MessageHandlers as mh
 import zmq
 import json
 import threading
+import networkx as nx
+import osmnx as ox
+import os
 
 class WorkerHandler(mh.RouterMessageHandler):
     """Handels messages arrvinge at the PongProc’s REP stream."""
@@ -33,6 +36,12 @@ class WorkerHandler(mh.RouterMessageHandler):
 
         self._queue_processor = threading.Thread(target=self.process_tasks_in_queue, args = ())
         self._queue_processor.start()
+
+        # Confirm directories are in place
+
+        if not os.path.exists(os.path.join('data')):
+            raise OSError("Must first download data, see README.md")
+        self.data_dir = os.path.join(os.getcwd(), 'data')
         
     '''
         SEC002: General Handler Functions
@@ -64,15 +73,20 @@ class WorkerHandler(mh.RouterMessageHandler):
             self.worker_dict[worker] = port
 
     def test_ping_query(self, *data):
+        # Loading nx_g to save time for now...
+        file_path = os.path.join(self.data_dir, 'G.pkl')
+        with open(file_path, 'rb') as handle:
+            nx_g = pickle.load(handle)
+            
         sender = decode(data[0])
         print(f'Received {decode(data[1])} from {sender}')
-        self.test_ping_response(sender, 'Pong')
+        self.test_ping_response(sender, f'{len(nx_g.nodes)}')
         return
     
     def test_ping_response(self, *data):
         sender = data[0]
         payload = data[1]
-        print("Sending response.")
+        print("Sending response using the other server.")
         self._backend_stream.send_multipart([encode(sender), encode(payload)])
         return
 

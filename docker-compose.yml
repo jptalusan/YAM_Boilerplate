@@ -1,42 +1,22 @@
 version: "3.5"
 services:
 
-  worker-0000:
-    build: ./worker_files/
+  worker-0003:
+    build: ./rsu_worker/
     volumes: 
-      - ./worker_files/:/usr/src/app:z
+      - ./rsu_worker/:/usr/src/app:z
       - ./common/utils/:/usr/src/app/utils:z
       - ./common/base_stream/:/usr/src/app/base_stream:z
     ports:
-      - "6000:6000"
+      - "6003:6003"
+      - "6013:6013"
     environment: 
       - PYTHONUNBUFFERED=1
-      - WORKER_ID=0000
-      - PORT=6000
-      - SERVICE='DEMO'
-      - X=0
-      - Y=0
-    env_file:
-      - hosts.env
-      - constants.env
-    networks: 
-      - network_test_bed
-    restart: always
-
-  worker-0001:
-    build: ./worker_files/
-    volumes: 
-      - ./worker_files/:/usr/src/app:z
-      - ./common/utils/:/usr/src/app/utils:z
-      - ./common/base_stream/:/usr/src/app/base_stream:z
-    ports:
-      - "6001:6001"
-    environment: 
-      - PYTHONUNBUFFERED=1
-      - WORKER_ID=0001
-      - PORT=6001
-      - SERVICE='DEMO'
-      - X=0
+      - WORKER_ID=0003
+      - PORT=6003
+      - PUB_PORT=6013
+      - SERVICE='OTHER'
+      - X=1
       - Y=1
     env_file:
       - hosts.env
@@ -44,28 +24,94 @@ services:
     networks: 
       - network_test_bed
     restart: always
+    command:
+      - 'python3'
+      - '-u'
+      - '/usr/src/app/worker.py'
 
-  worker-0002:
-    build: ./worker_files/
+  worker-0004:
+    build: ./rsu_worker/
     volumes: 
-      - ./worker_files/:/usr/src/app:z
+      - ./rsu_worker/:/usr/src/app:z
       - ./common/utils/:/usr/src/app/utils:z
       - ./common/base_stream/:/usr/src/app/base_stream:z
     ports:
-      - "6002:6002"
+      - "6004:6004"
+      - "6014:6014"
     environment: 
       - PYTHONUNBUFFERED=1
-      - WORKER_ID=0002
-      - PORT=6002
-      - SERVICE='DEMO'
+      - WORKER_ID=0004
+      - PORT=6004
+      - PUB_PORT=6014
+      - SERVICE='OTHER'
       - X=1
-      - Y=0
+      - Y=1
     env_file:
       - hosts.env
       - constants.env
     networks: 
       - network_test_bed
     restart: always
+    command:
+      - 'python3'
+      - '-u'
+      - '/usr/src/app/worker.py'
+
+  worker-0005:
+    build: ./rsu_worker/
+    volumes: 
+      - ./rsu_worker/:/usr/src/app:z
+      - ./common/utils/:/usr/src/app/utils:z
+      - ./common/base_stream/:/usr/src/app/base_stream:z
+    ports:
+      - "6005:6005"
+      - "6015:6015"
+    environment: 
+      - PYTHONUNBUFFERED=1
+      - WORKER_ID=0005
+      - PORT=6005
+      - PUB_PORT=6015
+      - SERVICE='OTHER'
+      - X=1
+      - Y=1
+    env_file:
+      - hosts.env
+      - constants.env
+    networks: 
+      - network_test_bed
+    restart: always
+    command:
+      - 'python3'
+      - '-u'
+      - '/usr/src/app/worker.py'
+
+  worker-0006:
+    build: ./rsu_worker/
+    volumes: 
+      - ./rsu_worker/:/usr/src/app:z
+      - ./common/utils/:/usr/src/app/utils:z
+      - ./common/base_stream/:/usr/src/app/base_stream:z
+    ports:
+      - "6006:6006"
+      - "6016:6016"
+    environment: 
+      - PYTHONUNBUFFERED=1
+      - WORKER_ID=0006
+      - PORT=6006
+      - PUB_PORT=6016
+      - SERVICE='OTHER'
+      - X=1
+      - Y=1
+    env_file:
+      - hosts.env
+      - constants.env
+    networks: 
+      - network_test_bed
+    restart: always
+    command:
+      - 'python3'
+      - '-u'
+      - '/usr/src/app/worker.py'
 
 networks:
   network_test_bed:

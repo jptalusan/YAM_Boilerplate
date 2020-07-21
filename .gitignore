@@ -141,7 +141,6 @@ data/
 
 # ignore other services
 # docker-compose-other-service.yml
-# other_worker_files/
+# rsu_worker/
 # End of https://www.gitignore.io/api/python
-.vscode/settings.json
 .vscode/settings.json

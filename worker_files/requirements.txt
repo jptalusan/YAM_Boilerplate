@@ -1,4 +1,0 @@
-zmq
-blosc
-tornado
-redis

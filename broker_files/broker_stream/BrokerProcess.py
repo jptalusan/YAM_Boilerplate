@@ -25,7 +25,7 @@ class BrokerProcess(zp.ZmqProcess):
 
         # TODO: add some self.backend_stream etc... to connect this Process to some other socket
         self.frontend_stream    = None
-        self.backend_stream     = None
+        self.publish_stream     = None
         # Discovery
         self.heartbeat_stream   = None
 
@@ -45,7 +45,7 @@ class BrokerProcess(zp.ZmqProcess):
         self.frontend_stream, _     = self.stream(zmq.ROUTER, self.bind_addr, bind=True, identity=self.identity)
 
         # Sends messages to workers
-        self.backend_stream, _      = self.stream(zmq.PUB, self.backend_addr, bind=True, identity=self.identity)
+        self.publish_stream, _      = self.stream(zmq.PUB, self.backend_addr, bind=True, identity=self.identity)
 
         # Receives messages from workers
         self.heartbeat_stream, _    = self.stream(zmq.PULL, self.heartbeat_addr, bind=True, identity=self.identity)
@@ -58,8 +58,8 @@ class BrokerProcess(zp.ZmqProcess):
         self.frontend_stream.on_recv(brokerHandler)
 
         # Attach handlers to the streams
-        self.backend_stream.on_recv(brokerHandler)
-        self.backend_stream.on_send(sendHandler.logger)
+        self.publish_stream.on_recv(brokerHandler)
+        self.publish_stream.on_send(sendHandler.logger)
 
         pullHandler = PullHandler(self)
         self.heartbeat_stream.on_recv(pullHandler)

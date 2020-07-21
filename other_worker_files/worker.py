@@ -22,6 +22,8 @@ HEARTBEAT_PORT = os.environ['HEARTBEAT_PORT']
 BROKER_HOST = 'broker'
 BROKER_PORT = os.environ['BACKEND_PORT']
 
+PUB_PORT = os.environ['PUB_PORT']
+
 TIMEOUT = float(os.environ['TIMEOUT'])
 
 X_COORD = os.environ['X']
@@ -60,4 +62,5 @@ if __name__ == "__main__":
     heartbeat(context)
     wp.WorkerProcess(bind_addr=('*', ROUTER_PORT), 
                      broker_addr=(BROKER_HOST, BROKER_PORT),
+                     publish_addr=('*', PUB_PORT),
                      identity="Worker-{}".format(ident)).start()

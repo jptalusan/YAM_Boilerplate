@@ -143,3 +143,5 @@ data/
 # docker-compose-other-service.yml
 # other_worker_files/
 # End of https://www.gitignore.io/api/python
+.vscode/settings.json
+.vscode/settings.json

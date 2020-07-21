@@ -21,8 +21,9 @@ class WorkerHandler(mh.RouterMessageHandler):
         # json_load is the element index of the msg_type (differs with socket type)
         super().__init__(json_load=1)
         # Instance variables
-        self._base_process    = base_process
-        self._backend_stream  = base_process.backend_stream
+        self._base_process      = base_process
+        self._backend_stream    = base_process.backend_stream
+        self._publisher_stream  = base_process.publisher_stream
 
         self._identity        = identity
         self._r               = base_process.redis
@@ -90,13 +91,13 @@ class WorkerHandler(mh.RouterMessageHandler):
         self._backend_stream.send_multipart([encode(sender), encode(payload)])
         return
 
-    def pipeline_ping_query(self, *data):
+    def generate_route(self, *data):
         # print(f'Received: {data}.')
         sender = decode(data[0])
         payload = json.loads(decode(data[1]))
-        if payload['pipeline'][0] == self._identity:
+        # if payload['pipeline'][0] == self._identity:
             # print(f'Task to rpush: {payload}')
-            self._r.rpush(self._identity, json.dumps(payload))
+        self._r.rpush(self._identity, json.dumps(payload))
         return
 
     def process_tasks_in_queue(self):
@@ -109,30 +110,55 @@ class WorkerHandler(mh.RouterMessageHandler):
                 # print(f"Task lpop: {task}")
 
                 payload = json.loads(task)
-                pipeline = payload['pipeline']
+                OD = payload['OD']
                 timestamp = payload['time']
-                current = pipeline.pop(0)
-                complete_payload = {'time': timestamp, 'pipeline': pipeline}
 
                 # "Processing"
                 time.sleep(0.5)
-                
-                if len(pipeline) != 0:
-                    payload = json.dumps(complete_payload)
+                file_path = os.path.join(self.data_dir, 'G.pkl')
+                with open(file_path, 'rb') as handle:
+                    nx_g = pickle.load(handle)
 
-                    temp_sock = self.context.socket(zmq.DEALER)
-                    temp_sock.identity = encode(self._identity)
-                    temp_sock.connect('tcp://%s:%s' % (pipeline[0], self.worker_dict[pipeline[0]]))
-                    temp_sock.send_multipart([b'pipeline_ping_query', encode(payload)], zmq.NOBLOCK)
-                    temp_sock.close()
-                else:
-                    # Comment out if want to get response
-                    # print(f"Done the task sent at {timestamp}")
-                    
-                    # Uncomment if need to get response
-                    self._backend_stream.send_multipart([encode('Client-0000'), encode(str(timestamp)), encode('PONG')], zmq.NOBLOCK)
-                    print("Sending the result back to sender.")
-            # time.sleep(5)
+                # Generate route
+                import random
+                import numpy as np
+
+                try:
+                    temp = np.random.choice(nx_g.nodes, size=2, replace=False)
+                    print(temp)
+                    r = nx.shortest_path(nx_g, temp[0], temp[1])
+                except nx.NetworkXNoPath:
+                    r = []
+                if r:
+                    if isinstance(r[0], np.int64):
+                        r = [int(_r) for _r in r]
+                complete_payload = {'time': timestamp, 'route': r}
+                print(complete_payload)
+                if r:
+                    print(type(r), type(r[0]))
+                payload = json.dumps(complete_payload)
+
+                self._publisher_stream.send_multipart([b'client_result', encode(payload)], zmq.NOBLOCK)
+
+                # For testing
+                temp_sock = self.context.socket(zmq.DEALER)
+                temp_sock.identity = encode(self._identity)
+                temp_sock.connect('tcp://Worker-0001:6001')
+                temp_sock.send_multipart([b'test_ping_query', encode('Ping')], zmq.NOBLOCK)
+                temp_sock.close()
+
+                # if len(pipeline) != 0:
+                    # pass
+                    # payload = json.dumps(complete_payload)
+
+                    # temp_sock = self.context.socket(zmq.DEALER)
+                    # temp_sock.identity = encode(self._identity)
+                    # temp_sock.connect('tcp://%s:%s' % (pipeline[0], self.worker_dict[pipeline[0]]))
+                    # temp_sock.send_multipart([b'pipeline_ping_query', encode(payload)], zmq.NOBLOCK)
+                    # temp_sock.close()
+                # else:
+                    # self._backend_stream.send_multipart([encode('Client-0000'), encode(str(timestamp)), encode('PONG')], zmq.NOBLOCK)
+                    # print("Sending the result back to sender.")
 
     '''
         SEC004: Service-specific Handler Functions

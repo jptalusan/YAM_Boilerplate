@@ -24,7 +24,7 @@ class BrokerHandler(mh.RouterMessageHandler):
         super().__init__(json_load=1)
         self._base_process      = base_process
         self._frontend_stream   = base_process.frontend_stream
-        self._backend_stream    = base_process.backend_stream
+        self._publish_stream    = base_process.publish_stream
         self._heartbeat_stream  = base_process.heartbeat_stream
         self._identity          = identity
         self._r                 = base_process.redis
@@ -49,8 +49,6 @@ class BrokerHandler(mh.RouterMessageHandler):
     def error(self, *data):
         print("Error:{}".format(data))
         print("Recived error, worker should just be ready again.")
-        sender = decode(data[1])
-        self.worker_ready(sender)
         return
 
     '''
@@ -95,7 +93,7 @@ class BrokerHandler(mh.RouterMessageHandler):
             workers.append(worker)
 
         print(f'Worker list: {workers}')
-        self._backend_stream.send_multipart([encode('broker'), encode('populate_neighbors'), encode(json.dumps(payload))])
+        self._publish_stream.send_multipart([encode('broker'), encode('populate_neighbors'), encode(json.dumps(payload))])
 
         self._frontend_stream.send_multipart([encode(BrokerHandler.client), encode("Done reintroducing...")])
         print("Done reintroducing...")

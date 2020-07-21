@@ -10,10 +10,11 @@ class WorkerProcess(zp.ZmqProcess):
     a pong.
 
     """
-    def __init__(self, bind_addr, broker_addr, identity=None):
+    def __init__(self, bind_addr, broker_addr, publish_addr, identity=None):
         super().__init__()
         self.bind_addr = bind_addr
         self.broker_addr = broker_addr
+        self.publish_addr = publish_addr
         self.identity = identity
 
         self.backend_stream = None
@@ -29,9 +30,9 @@ class WorkerProcess(zp.ZmqProcess):
 
         # Create the stream and add the message handler
         # Take note that socket types are different compared to some other process
-        self.backend_stream, _ = self.stream(zmq.ROUTER, self.bind_addr, bind=True, identity=self.identity)
-                                # self.stream(zmq.SUB, self.subs_addr, bind=True, identity=self.identity, subscribe=b"topic")
-        self.broker_stream, _ = self.stream(zmq.SUB, self.broker_addr, bind=False, identity=self.identity, subscribe=b"broker")
+        self.backend_stream, _   = self.stream(zmq.ROUTER, self.bind_addr, bind=True, identity=self.identity)
+        self.broker_stream, _    = self.stream(zmq.SUB, self.broker_addr, bind=False, identity=self.identity, subscribe=b"broker")
+        self.publisher_stream, _ = self.stream(zmq.PUB, self.publish_addr, bind=True, identity=self.identity)
 
         # Create the handlers
         workerHandler = WorkerHandler(self.identity, self)

@@ -9,10 +9,12 @@ services:
       - ./common/base_stream/:/usr/src/app/base_stream:z
     ports:
       - "6003:6003"
+      - "6013:6013"
     environment: 
       - PYTHONUNBUFFERED=1
       - WORKER_ID=0003
       - PORT=6003
+      - PUB_PORT=6013
       - SERVICE='OTHER'
       - X=1
       - Y=1

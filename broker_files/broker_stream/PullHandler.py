@@ -22,7 +22,7 @@ class PullHandler(mh.PullMessageHandler):
         self._r =  redis.StrictRedis(host='redis', port=6379, db=0, decode_responses=True)
         self._r.flushdb()
 
-        self._backend_stream = base_process.backend_stream
+        self._publish_stream = base_process.publish_stream
 
         self._timeout_processor = threading.Thread(target=self.timeout, args = ())
         self._timeout_processor.start()
@@ -59,10 +59,15 @@ class PullHandler(mh.PullMessageHandler):
         self.reintroduce_neighbors()
         return
 
+    def error(self, *data):
+        print("Error:{}".format(data))
+        print("Recived error for heartbeat....")
+        return
+
     def reintroduce_neighbors(self):
         payload = {}
         for worker in self._r.scan_iter(match='Worker-*'):
             payload[worker] = self._r.hgetall(worker)
 
-        self._backend_stream.send_multipart([encode('broker'), encode('populate_neighbors'), encode(json.dumps(payload))])
+        self._publish_stream.send_multipart([encode('broker'), encode('populate_neighbors'), encode(json.dumps(payload))])
 

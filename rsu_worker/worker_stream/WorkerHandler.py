@@ -7,6 +7,11 @@ import threading
 import networkx as nx
 import osmnx as ox
 import os
+import numpy as np
+from src.conf import GLOBAL_VARS
+from src.distributed_routing import task
+from src.route_planning import query_handler as qh
+from src.route_planning import route_generation as rg
 
 class WorkerHandler(mh.RouterMessageHandler):
     """Handels messages arrvinge at the PongProc’s REP stream."""
@@ -91,14 +96,107 @@ class WorkerHandler(mh.RouterMessageHandler):
         self._backend_stream.send_multipart([encode(sender), encode(payload)])
         return
 
-    def generate_route(self, *data):
-        # print(f'Received: {data}.')
+    def receive_route_query(self, *data):
         sender = decode(data[0])
         payload = json.loads(decode(data[1]))
-        # if payload['pipeline'][0] == self._identity:
-            # print(f'Task to rpush: {payload}')
         self._r.rpush(self._identity, json.dumps(payload))
         return
+
+    def generate_route(self, payload):
+        q_id = payload['q_id']
+        OD = payload['OD']
+        timestamp = payload['time']
+
+        file_path = os.path.join(self.data_dir, 'G.pkl')
+        with open(file_path, 'rb') as handle:
+            nx_g = pickle.load(handle)
+
+        # Generate route
+        try:
+            r = nx.shortest_path(nx_g, int(OD[0]), int(OD[1]))
+        except nx.NetworkXNoPath:
+            r = []
+
+        complete_payload = {'q_id': q_id, 'time': timestamp, 'route': r}
+        payload = json.dumps(complete_payload, cls = NpEncoder)
+
+        self._publisher_stream.send_multipart([b'client_result', encode(payload)], zmq.NOBLOCK)
+        print(f"Done with {q_id}")
+        # For testing
+        # temp_sock = self.context.socket(zmq.DEALER)
+        # temp_sock.identity = encode(self._identity)
+        # temp_sock.connect('tcp://Worker-0001:6001')
+        # temp_sock.send_multipart([b'test_ping_query', encode('Ping')], zmq.NOBLOCK)
+        # temp_sock.close()
+
+    def plan_route(self, payload):
+        print("-> plan_route()")
+        precision     = 10
+        bits_per_char = 2
+        q_id = payload['q_id']
+        timestamp = payload['time']
+        s = payload['s']
+        d = payload['d']
+        t = payload['t']
+
+        file_path = os.path.join(self.data_dir, f'9-p_{precision}-bpc_{bits_per_char}-G.pkl')
+        with open(file_path, 'rb') as handle:
+            nx_g = pickle.load(handle)
+
+        r, ogs = qh.generate_optimal_grid_sequence(nx_g, payload)
+
+        # debugging
+        complete_payload = {'s': s, 'd': d, 't': t, 
+                            'q_id': q_id, 'time': timestamp, 
+                            'route': r, 'ogs': ogs}
+
+        tasks = qh.generate_tasks(complete_payload)
+
+        for task in tasks:
+            data = task.get_json()
+            gridA = data['gridA']
+            gridB = data['gridB']
+
+            if isinstance(gridA, int):
+                optimal_rsu = gridB
+            else:
+                optimal_rsu = gridA
+
+            worker = GLOBAL_VARS.WORKER[optimal_rsu]
+            port   = GLOBAL_VARS.PORTS[worker]
+            print(f'{optimal_rsu}: tcp://{worker}:{port}')
+
+            temp_sock = self.context.socket(zmq.DEALER)
+            temp_sock.identity = encode(self._identity)
+            temp_sock.connect(f'tcp://{worker}:{port}')
+
+            data['task_type'] = GLOBAL_VARS.PARTIAL_ROUTE
+            curr_port   = GLOBAL_VARS.PORTS[self._identity]
+            data['end_point'] = f'{self._identity}:{curr_port}'
+
+            payload = json.dumps(data, cls = NpEncoder)
+            temp_sock.send_multipart([b'receive_route_query', encode(payload)], zmq.NOBLOCK)
+            temp_sock.close()
+
+
+        payload = json.dumps(complete_payload, cls = NpEncoder)
+        self._publisher_stream.send_multipart([b'client_result', encode(payload)], zmq.NOBLOCK)
+        print(f"Done with {q_id}")
+
+    # TODO: Convert a json to an object again,.
+    def generate_partial_route(self, payload):
+        print("-> generate_partial_route()")
+        print(payload)
+        precision     = 10
+        bits_per_char = 2
+        geohash = GLOBAL_VARS.RSUS[self._identity]
+
+        file_path = os.path.join(self.data_dir, f'9-p_{precision}-bpc_{bits_per_char}-G.pkl')
+        with open(file_path, 'rb') as handle:
+            nx_g = pickle.load(handle)
+
+        router = rg.Route_Generator(nx_g, precision, bits_per_char)
+        router.find_route(payload)
 
     def process_tasks_in_queue(self):
         # Should I not pop immediately, but only when the pipeline is "done"
@@ -107,45 +205,15 @@ class WorkerHandler(mh.RouterMessageHandler):
             if task_count > 0:
                 print(f'{self._identity} has {task_count} tasks in queue.')
                 task = self._r.lpop(self._identity)
-                # print(f"Task lpop: {task}")
 
                 payload = json.loads(task)
-                OD = payload['OD']
-                timestamp = payload['time']
-
-                # "Processing"
-                time.sleep(0.5)
-                file_path = os.path.join(self.data_dir, 'G.pkl')
-                with open(file_path, 'rb') as handle:
-                    nx_g = pickle.load(handle)
-
-                # Generate route
-                import random
-                import numpy as np
-
-                try:
-                    temp = np.random.choice(nx_g.nodes, size=2, replace=False)
-                    print(temp)
-                    r = nx.shortest_path(nx_g, temp[0], temp[1])
-                except nx.NetworkXNoPath:
-                    r = []
-                if r:
-                    if isinstance(r[0], np.int64):
-                        r = [int(_r) for _r in r]
-                complete_payload = {'time': timestamp, 'route': r}
-                print(complete_payload)
-                if r:
-                    print(type(r), type(r[0]))
-                payload = json.dumps(complete_payload)
-
-                self._publisher_stream.send_multipart([b'client_result', encode(payload)], zmq.NOBLOCK)
-
-                # For testing
-                temp_sock = self.context.socket(zmq.DEALER)
-                temp_sock.identity = encode(self._identity)
-                temp_sock.connect('tcp://Worker-0001:6001')
-                temp_sock.send_multipart([b'test_ping_query', encode('Ping')], zmq.NOBLOCK)
-                temp_sock.close()
+                task_type = payload['task_type']
+                if task_type == GLOBAL_VARS.FULL_ROUTE:
+                    self.generate_route(payload)
+                if task_type == GLOBAL_VARS.ROUTE_PLANNING:
+                    self.plan_route(payload)
+                if task_type == GLOBAL_VARS.PARTIAL_ROUTE:
+                    self.generate_partial_route(payload)
 
     '''
         SEC004: Service-specific Handler Functions

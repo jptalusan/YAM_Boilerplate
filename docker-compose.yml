@@ -113,6 +113,34 @@ services:
       - '-u'
       - '/usr/src/app/worker.py'
 
+  worker-0007:
+    build: ./rsu_worker/
+    volumes: 
+      - ./rsu_worker/:/usr/src/app:z
+      - ./common/utils/:/usr/src/app/utils:z
+      - ./common/base_stream/:/usr/src/app/base_stream:z
+    ports:
+      - "6007:6007"
+      - "6017:6017"
+    environment: 
+      - PYTHONUNBUFFERED=1
+      - WORKER_ID=0007
+      - PORT=6007
+      - PUB_PORT=6017
+      - SERVICE='OTHER'
+      - X=1
+      - Y=1
+    env_file:
+      - hosts.env
+      - constants.env
+    networks: 
+      - network_test_bed
+    restart: always
+    command:
+      - 'python3'
+      - '-u'
+      - '/usr/src/app/worker.py'
+
 networks:
   network_test_bed:
     name: network_test_bed

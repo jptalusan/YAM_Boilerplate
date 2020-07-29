@@ -5,8 +5,8 @@ import uuid
 import copy
 from .task import Task
 import json
-from common.conf import GLOBAL_VARS
-import common.src.basic_utils as utils
+from src.conf import GLOBAL_VARS
+import basic_utils as utils
 
 # This is the entirety of query generation because the SG needs to be "pre-determined" before processing
 # (since we dont have any model that would tell us the next best grid right now)

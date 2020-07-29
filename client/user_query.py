@@ -3,6 +3,11 @@ import json
 from multiprocessing import Process
 import time
 import random
+import pandas as pd
+import numpy as np
+import os
+import pickle
+import uuid
 
 # https://stackoverflow.com/questions/39163872/zeromq-advantages-of-the-router-dealer-pattern
 
@@ -18,6 +23,61 @@ encode = lambda x: x.encode('ascii')
 current_seconds_time = lambda: int(round(time.time()))
 
 QUERIES = 1
+
+def get_queries(x, y, number_of_queries):
+    p = 10
+    bpc = 2
+
+    if not os.path.exists(os.path.join(os.getcwd(), 'data')):
+        raise OSError("Must first download data, see README.md")
+    data_dir = os.path.join(os.getcwd(), 'data')
+
+    file_path = os.path.join(data_dir, f'{p}-{bpc}-100-queries.pkl')
+    task_list = pickle.load(open(file_path,'rb'))
+    print(task_list.head())
+    task_list.drop(['og', 'r'], axis=1, inplace=True)
+    print(task_list.head())
+    # return task_list.sample(n = number_of_queries)
+    return task_list[0:number_of_queries]
+
+def send_query(row):
+    context = zmq.Context()
+
+    host = 'localhost'
+    port = 6003
+
+    receiver = context.socket(zmq.DEALER)
+    receiver.identity = (u"Client-%s" % str(0).zfill(4)).encode('ascii')
+    receiver.connect('tcp://%s:%s' % (host, port))
+
+    timestamp = time.time()
+    q_id = row.t_id
+    O = int(row.s)
+    D = int(row.d)
+    task_type = "FULL_ROUTE"
+    payload = json.dumps({"q_id": q_id, "time": timestamp, "OD": (O, D), "task_type": task_type})
+    receiver.send_multipart([b'receive_route_query', payload.encode('ascii')], flags = zmq.DONTWAIT)
+    print(f"Sent route query {q_id} at {timestamp} with payload: {payload}\n")
+
+def send_route_planning(row):
+    context = zmq.Context()
+
+    host = 'localhost'
+    port = 6003
+
+    receiver = context.socket(zmq.DEALER)
+    receiver.identity = (u"Client-%s" % str(0).zfill(4)).encode('ascii')
+    receiver.connect('tcp://%s:%s' % (host, port))
+
+    timestamp = time.time()
+    q_id = row.t_id
+    O = int(row.s)
+    D = int(row.d)
+    T = random.choice(range(0, 24))
+    task_type = "ROUTE_PLANNING"
+    payload = json.dumps({"q_id": q_id, "time": timestamp, "s": O, "d": D, "t": T, "task_type": task_type})
+    receiver.send_multipart([b'receive_route_query', payload.encode('ascii')], flags = zmq.DONTWAIT)
+    print(f"Sent route query {q_id} at {timestamp} with payload: {payload}\n")
 
 def generate_route():
     context = zmq.Context()
@@ -65,7 +125,7 @@ def listener():
             timestamp = payload['time']
             received = time.time()
             messages_received += 1
-            print(f'{messages_received}: Received {message}\nTime elapsed: {received - timestamp}')
+            print(f'{messages_received}: Received {message}\nTime elapsed: {received - timestamp}\n')
             print()
             if messages_received == QUERIES:
                 break
@@ -73,18 +133,8 @@ def listener():
 
 if __name__ == '__main__':
     Process(target=listener, args=()).start()
-    generate_route()
 
-    # ping(6003)
-
-    # reintroduce_workers()
-
-    # Process(target=pipeline_ping, args=()).start()
-
-    # for i in {1..20}; do echo $i; python user_query.py; done
-    # Process(target=pipeline_async_ping, args=()).start()
-
-    # For demo on heartbeat
-    # for _ in range(5):
-    #     heartbeat_demo()
-    # query_services()
+    df = get_queries(5, 5, QUERIES)
+    # df.apply(send_query, axis=1)
+    df.apply(send_route_planning, axis=1)
+    # generate_route()

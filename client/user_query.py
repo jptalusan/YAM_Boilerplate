@@ -17,12 +17,15 @@ import uuid
 # https://stackoverflow.com/questions/35828487/docker-1-10-access-a-container-by-its-hostname-from-a-host-machine/
 host = 'localhost'
 port = 6000
+worker = 5
+broker_port = 6000 + worker
+listener_port = 6010 + worker
 
 decode = lambda x: x.decode('utf-8')
 encode = lambda x: x.encode('ascii')
 current_seconds_time = lambda: int(round(time.time()))
 
-QUERIES = 1
+QUERIES = 5
 
 def get_queries(x, y, number_of_queries):
     p = 10
@@ -34,17 +37,14 @@ def get_queries(x, y, number_of_queries):
 
     file_path = os.path.join(data_dir, f'{p}-{bpc}-100-queries.pkl')
     task_list = pickle.load(open(file_path,'rb'))
-    print(task_list.head())
     task_list.drop(['og', 'r'], axis=1, inplace=True)
-    print(task_list.head())
-    # return task_list.sample(n = number_of_queries)
-    return task_list[0:number_of_queries]
+    return task_list.sample(n = number_of_queries)
 
 def send_query(row):
     context = zmq.Context()
 
     host = 'localhost'
-    port = 6003
+    port = broker_port
 
     receiver = context.socket(zmq.DEALER)
     receiver.identity = (u"Client-%s" % str(0).zfill(4)).encode('ascii')
@@ -60,10 +60,11 @@ def send_query(row):
     print(f"Sent route query {q_id} at {timestamp} with payload: {payload}\n")
 
 def send_route_planning(row):
+    time.sleep(0.5)
     context = zmq.Context()
 
     host = 'localhost'
-    port = 6003
+    port = broker_port
 
     receiver = context.socket(zmq.DEALER)
     receiver.identity = (u"Client-%s" % str(0).zfill(4)).encode('ascii')
@@ -83,7 +84,7 @@ def generate_route():
     context = zmq.Context()
 
     host = 'localhost'
-    port = 6003
+    port = broker_port
 
     receiver = context.socket(zmq.DEALER)
     receiver.identity = (u"Client-%s" % str(0).zfill(4)).encode('ascii')
@@ -102,7 +103,7 @@ def generate_route():
 
 def listener():
     host = 'localhost'
-    port = 6013
+    port = listener_port
 
     context = zmq.Context()
     socket_sub = context.socket(zmq.SUB)
@@ -123,18 +124,16 @@ def listener():
             topic, message = socket_sub.recv_multipart()
             payload = json.loads(decode(message))
             timestamp = payload['time']
+            route = payload['route']
             received = time.time()
             messages_received += 1
             print(f'{messages_received}: Received {message}\nTime elapsed: {received - timestamp}\n')
             print()
-            if messages_received == QUERIES:
-                break
-    
-
 if __name__ == '__main__':
     Process(target=listener, args=()).start()
 
     df = get_queries(5, 5, QUERIES)
+    print(df.head())
     # df.apply(send_query, axis=1)
     df.apply(send_route_planning, axis=1)
     # generate_route()

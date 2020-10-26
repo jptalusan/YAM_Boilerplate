@@ -2,9 +2,12 @@ import os
 import networkx as nx
 import osmnx as ox
 import src.distributed_routing.utility as geo_utils
+import math
+import random
 
-DEBUG = 1
+DEBUG = 0
 
+# This will all be redesigned i guess?
 class Route_Generator(object):
     def __init__(self, nx_g, p, bpc):
         self.precision = p
@@ -56,6 +59,7 @@ class Route_Generator(object):
 
         return r
 
+    # TODO: Redesign
     def get_bounds_between_two_grids(self, grid1, grid2):
         possible_nodes = []
         
@@ -67,33 +71,39 @@ class Route_Generator(object):
             if 'is_bounds' in node and node['is_bounds']:
                 boundaries = node['boundaries']
                 if set([grid1, grid2]) == set(boundaries):
-                    print(n, node)
+                    # print(n, node)
                     if n not in possible_nodes:
                         possible_nodes.append(n)
                         
-        print("\n")
+        # print("\n")
 
         for n in sg2.nodes:
             node = sg2.node[n]
             if 'is_bounds' in node and node['is_bounds']:
                 boundaries = node['boundaries']
                 if set([grid1, grid2]) == set(boundaries):
-                    print(n, node)
+                    # print(n, node)
                     if n not in possible_nodes:
                         possible_nodes.append(n)
-        print(sg1, sg2)
+        # print("Sub-Grids:", type(sg1), type(sg2))
         return possible_nodes
-        
+
+    def random_speeds(self, start, end, attr, sensor_data=None, time_window=None):
+        if 0 not in attr:
+            key = random.choice(list(attr))
+            tmc_id = attr[key]['tmc_id']
+        else:
+            tmc_id = attr[0]['tmc_id']
+        average_speed_at_time_window = random.uniform(1.86, 80.78)
+        return average_speed_at_time_window
+
     def get_shortest_route_random(self, sg, grid, node, time, bounds_list):
         # Assume that rsu_arr is present in the rsu
-        # G = self.get_dataframe_historical_data(grid, with_neighbors=True)
-        G = self.get_speeds_hash_for_grid(grid, with_neighbors=True)
         fastest = math.inf
         route = None
         for b in bounds_list:
             try:
-                # (total_time, avg_speed_route) = nx.dijkstra_path_timed(sg, node, b, self.get_travel_time_from_database, G, time_window=time)
-                (total_time, avg_speed_route) = nx.dijkstra_path_timed(sg, node, b, self.get_avg_speed_at_edge, G, time_window=time)
+                (total_time, avg_speed_route) = nx.dijkstra_path_timed(sg, node, b, self.random_speeds, rsu_hash=None, time_window=time)
                 if total_time < fastest:
                     fastest = total_time
                     route = avg_speed_route
@@ -117,15 +127,17 @@ class Route_Generator(object):
             if DEBUG:
                 print("Task A")
             bounds = self.get_bounds_between_two_grids(gridA, gridB)
-            (total_time, route) = get_shortest_route(whole_graph, gridA, node1, time, bounds)
+            # (total_time, route) = self.get_shortest_route(whole_graph, gridA, node1, time, bounds)
+            (total_time, route) = self.get_shortest_route_random(self.g, gridA, node1, time, bounds)
             return total_time, route
             
         elif node1 is None and (gridA is not None and isinstance(gridB, str)) and (gridB is not None and isinstance(gridB, str)):
             # Middle hop: must make use of node2 (the result of the previous hop)
             if DEBUG:
                 print("Task B")
-            bounds = get_bounds_between_two_grids(gridA, gridB)
-            (total_time, route) = self.get_shortest_route(self.whole_graph, gridA, node2, time, bounds)
+            bounds = self.get_bounds_between_two_grids(gridA, gridB)
+            # (total_time, route) = self.get_shortest_route(self.whole_graph, gridA, node2, time, bounds)
+            (total_time, route) = self.get_shortest_route_random(self.g, gridA, node2, time, bounds)
             return total_time, route
         
         elif node1 is not None and gridA is not None and gridB is None:
@@ -134,16 +146,18 @@ class Route_Generator(object):
             if DEBUG:
                 print("Task C")
             
+            # TODO: Return the use of speed hashes for this part. For now its just random, to make the basic route planning work
             # Assume that rsu_arr is present in the rsu
             # G = self.get_dataframe_historical_data(gridA, with_neighbors=True)
-            G = get_speeds_hash_for_grid(gridA, with_neighbors=True)
+            # G = get_speeds_hash_for_grid(gridA, with_neighbors=True)
             
             fastest = math.inf
             route = None
             try:
-                sg = whole_graph
+                sg = self.g
                 # (total_time, avg_speed_route) = nx.dijkstra_path_timed(sg, node2, node1, self.get_travel_time_from_database, G, time_window=time)
-                (total_time, avg_speed_route) = nx.dijkstra_path_timed(sg, node2, node1, get_avg_speed_at_edge, G, time_window=time)
+                # (total_time, avg_speed_route) = nx.dijkstra_path_timed(sg, node2, node1, get_avg_speed_at_edge, G, time_window=time)
+                (total_time, avg_speed_route) = nx.dijkstra_path_timed(sg, node2, node1, self.random_speeds, rsu_hash=None, time_window=time)
                 if total_time < fastest:
                     fastest = total_time
                     route = avg_speed_route
@@ -161,18 +175,19 @@ class Route_Generator(object):
             if DEBUG:
                 print("Task D")
 
+            # TODO: Same as above
             # Assume that rsu_arr is present in the rsu
             # G = self.get_dataframe_historical_data(gridB, with_neighbors=True)
-            G = get_speeds_hash_for_grid(gridB, with_neighbors=True)
+            # G = get_speeds_hash_for_grid(gridB, with_neighbors=True)
             
             fastest = math.inf
             route = None
             try:
-                sg = whole_graph
+                sg = self.g
                 # (total_time, avg_speed_route) = nx.dijkstra_path_timed(sg, node1, gridA, self.get_travel_time_from_database, G, time_window=time)
-                (total_time, avg_speed_route) = nx.dijkstra_path_timed(sg, node1, gridA, get_avg_speed_at_edge, G, time_window=time)
+                # (total_time, avg_speed_route) = nx.dijkstra_path_timed(sg, node1, gridA, get_avg_speed_at_edge, G, time_window=time)
+                (total_time, avg_speed_route) = nx.dijkstra_path_timed(sg, node1, gridA, self.random_speeds, rsu_hash=None, time_window=time)
                 
-
                 if total_time < fastest:
                     fastest = total_time
                     route = avg_speed_route

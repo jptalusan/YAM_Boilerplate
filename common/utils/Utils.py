@@ -2,7 +2,6 @@ import time
 import pickle
 import blosc
 import json
-import numpy as np
 
 decode = lambda x: x.decode('utf-8')
 encode = lambda x: x.encode('ascii')
@@ -25,14 +24,3 @@ def unpickle_and_unzip(pickled):
     unzipped = blosc.decompress(pickled)
     unpickld = pickle.loads(unzipped)
     return unpickld
-
-class NpEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, np.integer):
-            return int(obj)
-        elif isinstance(obj, np.floating):
-            return float(obj)
-        elif isinstance(obj, np.ndarray):
-            return obj.tolist()
-        else:
-            return super(NpEncoder, self).default(obj)

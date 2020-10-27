@@ -138,12 +138,6 @@ class WorkerHandler(mh.RouterMessageHandler):
 
         self._publisher_stream.send_multipart([b'client_result', encode(payload)], zmq.NOBLOCK)
         print(f"Done with {q_id}")
-        # For testing
-        # temp_sock = self.context.socket(zmq.DEALER)
-        # temp_sock.identity = encode(self._identity)
-        # temp_sock.connect('tcp://Worker-0001:6001')
-        # temp_sock.send_multipart([b'test_ping_query', encode('Ping')], zmq.NOBLOCK)
-        # temp_sock.close()
 
     #TODO: Create a separate queue for queries (aggregating and responding to user)
     def plan_route(self, payload):
@@ -305,7 +299,6 @@ class WorkerHandler(mh.RouterMessageHandler):
             temp_sock.send_multipart([b'receive_route_query', encode(ready_payload)], zmq.NOBLOCK)
             temp_sock.close()
         return True
-
 
     def process_queries_in_queue(self):
         while True:

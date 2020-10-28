@@ -4,6 +4,7 @@ ROUTE_PLANNING = "ROUTE_PLANNING"
 PARTIAL_ROUTE = "PARTIAL_ROUTE"
 PARTIAL_ROUTE_UPDATE = "PARTIAL_ROUTE_UPDATE"
 AGGREGATE_ROUTE = "AGGREGATE_ROUTE"
+ROUTE_ERROR = "ROUTE_ERROR"
 
 TASK_STATES = {
                 # OKS
@@ -20,23 +21,35 @@ TASK_STATES = {
                 "ERROR": 99
                 }
 
-RSUS = {'Worker-0003': '1311220301',
-        'Worker-0004': '1311220303',
-        'Worker-0005': '1311220302',
-        'Worker-0006': '1311220331',
-        'Worker-0007': '1311220332'}
+RSUS = {'Worker-0000': 0,
+        'Worker-0001': 1,
+        'Worker-0002': 2,
+        'Worker-0003': 3,
+        'Worker-0004': 4,
+        'Worker-0005': 5,
+        'Worker-0006': 6,
+        'Worker-0007': 7,
+        'Worker-0008': 8}
 
-WORKER = {'1311220301': 'Worker-0003', 
-          '1311220303': 'Worker-0004', 
-          '1311220302': 'Worker-0005', 
-          '1311220331': 'Worker-0006', 
-          '1311220332': 'Worker-0007'}
+WORKER = {0: 'Worker-0000',
+          1: 'Worker-0001',
+          2: 'Worker-0002',
+          3: 'Worker-0003',
+          4: 'Worker-0004',
+          5: 'Worker-0005',
+          6: 'Worker-0006',
+          7: 'Worker-0007',
+          8: 'Worker-0008'}
 
-PORTS = {'Worker-0003': 6003,
+PORTS = {'Worker-0000': 6000,
+         'Worker-0001': 6001,
+         'Worker-0002': 6002,
+         'Worker-0003': 6003,
          'Worker-0004': 6004,
          'Worker-0005': 6005,
          'Worker-0006': 6006,
-         'Worker-0007': 6007}
+         'Worker-0007': 6007,
+         'Worker-0008': 6008}
 
 RSU_ID = "RSU_ID"
 

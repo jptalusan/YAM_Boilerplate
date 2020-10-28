@@ -19,11 +19,6 @@ class Query(object):
 class Task(object):
     
     inquiry_time = None
-    assignment_time = None # Issue time
-    execution_start_time = None
-    execution_end_time = None
-    actual_grid_assignment = None
-    manhattan_distance = None
     state = None
     
     def __init__(self, json_data):
@@ -45,34 +40,6 @@ class Task(object):
 
         self.retry_count = 0
 
-    def get_tuple(self):
-        pass
-    
-    # How long it lives in the queue before processing
-    def assign_task(self, actual_grid_assignment):
-        self.assignment_time = current_milli_time()
-        self.actual_grid_assignment = actual_grid_assignment
-        pass
-    
-    # Does this really belong here?
-    # I think this is ok, but should be called by the RSU
-    def start_execution(self):
-        self.execution_start_time = current_milli_time()
-        
-        r1 = get_rsu_by_grid_id(rsu_arr, self.actual_grid_assignment)
-        r2 = get_rsu_by_grid_id(rsu_arr, self.start_point)
-        self.manhattan_distance = manhattan_distance(r1, r2)
-        pass
-    
-    def end_execution(self):
-        self.execution_end_time = current_milli_time()
-        elapsed = self.execution_end_time - self.execution_start_time
-        return elapsed
-    
-    # Actual, links, time_window, time stats (exec, issue etc..)
-    def get_stats(self):
-        pass
-        
     def get_json(self):
         d = {}
         

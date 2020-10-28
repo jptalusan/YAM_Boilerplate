@@ -26,8 +26,8 @@ PUB_PORT = os.environ['PUB_PORT']
 
 TIMEOUT = float(os.environ['TIMEOUT'])
 
-X_COORD = os.environ['X']
-Y_COORD = os.environ['Y']
+# X_COORD = os.environ['X']
+# Y_COORD = os.environ['Y']
 
 def heartbeat(context):
     threading.Timer(TIMEOUT/2, heartbeat, [context]).start()
@@ -48,8 +48,9 @@ def heartbeat(context):
     payload = json.dumps({"sentAt":now,
                           "service": service, 
                           "port": ROUTER_PORT,
-                          "x": X_COORD,
-                          "y": Y_COORD})
+                        #   "x": X_COORD,
+                        #   "y": Y_COORD
+                          })
 
     # print(f'Sending heartbeat: {payload}')
     socket.send_multipart([b"heartbeat", socket.identity, encode(payload)])

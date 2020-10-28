@@ -11,8 +11,6 @@ import shapely.ops as ops
 import datetime
 import numpy as np
 
-from .graph_breakdown import *
-
 import matplotlib.pyplot as plt
 plt.style.use('seaborn-whitegrid')
 
@@ -37,47 +35,6 @@ def generate_save_sub_graph(G, node_list, directory, filename=None):
         pickle.dump(SG, handle)
         
     return True
-
-### Must create empty grids so the code doesn't break.
-def create_sub_graphs_and_save(G, rsu_arr, directory):
-    print("create_sub_graphs_and_save:", directory)
-    empty_grids = []
-    counter = 0
-    grids = []
-
-    for r in rsu_arr:
-        grid = r.grid_id
-    #     print(grid)
-        poly_id = r.poly
-        sub_graph_nodes = []
-        for n in G.nodes:
-            node = G.node[n]
-            node_point = Point(node['x'], node['y'])
-            if node_point.within(poly_id) or node_point.intersects(poly_id):
-                sub_graph_nodes.append(n)
-                
-                # Must check if they are boundary nodes, and if grid is part of the list, if so: add them to sub_graph_nodes
-            if 'is_bounds' in node and node['is_bounds'] == True:
-                if grid in node['boundaries']:
-                    sub_graph_nodes.append(n)
-
-        if len(sub_graph_nodes) > 0:
-            grids.append(grid)
-            filename = str(counter).zfill(4) + '-' + grid + '.pkl'
-            generate_save_sub_graph(G, sub_graph_nodes, directory, filename=filename)
-            counter = counter + 1
-        else:
-            EG = nx.Graph()
-            filename = str(counter).zfill(4) + '-' + grid + '.pkl'
-            file_path = os.path.join(directory + '/sub_graphs', filename)
-            with open(file_path, 'wb') as handle:
-                pickle.dump(EG, handle)
-            empty_grids.append(grid)
-            counter = counter + 1
-
-    print("Empty grids:")
-    display(empty_grids)
-    return empty_grids
 
 def read_saved_sub_graphs(sub_graphs_dir):
     # This is just for the centralized archi

@@ -9,6 +9,7 @@ import networkx as nx
 import osmnx as ox
 import os
 import numpy as np
+from pprint import pprint
 from src.conf import GLOBAL_VARS
 
 from src.distributed_routing import task
@@ -52,14 +53,14 @@ class WorkerHandler(mh.RouterMessageHandler):
         self._queue_processor = threading.Thread(target=self.process_tasks_in_queue, args = ())
         self._queue_processor.start()
 
-        self._query_queue_processor = threading.Thread(target=self.process_queries_in_queue, args = ())
-        self._query_queue_processor.start()
-
         # Confirm directories are in place
 
         if not os.path.exists(os.path.join('data')):
             raise OSError("Must first download data, see README.md")
         self.data_dir = os.path.join(os.getcwd(), 'data')
+
+        # Setup route generator
+        self.router = rg.Route_Generator()
         
     '''
         SEC002: General Handler Functions
@@ -111,9 +112,17 @@ class WorkerHandler(mh.RouterMessageHandler):
     def receive_route_query(self, *data):
         sender = decode(data[0])
         payload = json.loads(decode(data[1]))
-        print("Received:", payload)
-        task_type = payload['task_type']
-        # print(f"Received {task_type} from: {sender}")
+        # print("Received:", payload)
+        if 'q_id' in payload:
+            print_log("")
+            print_log(f"Received query: {payload['q_id']} from {sender}")
+            # self._r.rpush(self._query_queue, json.dumps(payload))
+            self._r.hmset(payload['q_id'], {'received_time': payload['time'],
+                                            'route': "None"})
+        elif 't_id' in payload:
+            t_id = payload['t_id']
+            task_type = payload['task_type']
+            print_log(f"Received {t_id}:{task_type} from {sender}")
         # TODO: Check if payload t_id already exists, if yes, get it and update
         self._r.rpush(self._identity, json.dumps(payload))
         return
@@ -150,51 +159,63 @@ class WorkerHandler(mh.RouterMessageHandler):
         Returns:
             Bool: Returns True if it works, False if not.
         """
-        print("-> plan_route()")
-        precision     = 10
-        bits_per_char = 2
+        print_log("->plan_route()")
+        
         q_id = payload['q_id']
         timestamp = payload['time']
         s = payload['s']
         d = payload['d']
-        t = payload['t']
+        t_h = payload['t_h']
+        t_m = payload['t_m']
+        t = str(payload['t_h']) + ':' + str(payload['t_m'])
+        h = payload['h']
 
-        #TODO: Integrate with the new method of dividing a target area (see notebook with Work with Tiau)
-        # https://github.com/linusmotu/secure_routing/blob/master/PAPER_Generate_Distributed_Grid_Dataframes.ipynb
-        file_path = os.path.join(self.data_dir, f'9-p_{precision}-bpc_{bits_per_char}-G.pkl')
+        # HACK: Until i figure out how to make an optimal sequence grid.
+        file_path = os.path.join(self.data_dir, f'complete_graph_3x3.pkl')
         with open(file_path, 'rb') as handle:
             nx_g = pickle.load(handle)
 
-        r, ogs = qh.generate_optimal_grid_sequence(nx_g, payload)
-
+        n_s = ox.get_nearest_node(nx_g, (s['coordinates'][1], s['coordinates'][0]))
+        n_d = ox.get_nearest_node(nx_g, (d['coordinates'][1], d['coordinates'][0]))
+        route = nx.shortest_path(nx_g, n_s, n_d)
+        osg = qh.generate_optimal_sequence_grid(nx_g, route)
+        print_log(f"OSG:{osg}")
         # debugging
-        complete_payload = {'s': s, 'd': d, 't': t, 
-                            'q_id': q_id, 'time': timestamp, 
-                            'route': r, 'ogs': ogs}
+        complete_payload = {'q_id': q_id, 'received': time.time(), 'route': None}
 
-        tasks = qh.generate_tasks(complete_payload)
+        payload['osg'] = osg
+        tasks = qh.generate_tasks(payload)
+        [pprint(task.get_json()) for task in tasks]
 
         # Creating/adding to query queue (separate from task queue)
         # FIXME: I'm lazy and i won't do any other checking, assume sequential and route won't be jumbled.
-        complete_payload['route'] = []
-        payload = json.dumps(complete_payload, cls = NpEncoder)
+        payload['route'] = []
+        payload = json.dumps(payload, cls = NpEncoder)
         self.queries[q_id] = payload
 
         # Sends to all workers via zeromq
         for i, task in enumerate(tasks):
             data = task.get_json()
+            t_id = data['t_id']
             gridA = data['gridA']
             gridB = data['gridB']
+            node = data['node']
+            curr_grid = None
 
-            if isinstance(gridA, int):
-                optimal_rsu = gridB
-            else:
-                optimal_rsu = gridA
+            if isinstance(gridA, int) and isinstance(gridB, int):
+                curr_grid = gridA
+            elif isinstance(gridA, int):
+                curr_grid = gridA
+            elif isinstance(gridB, int):
+                curr_grid = gridB
+            elif isinstance(node, int):
+                curr_grid = node
 
-            worker = GLOBAL_VARS.WORKER[optimal_rsu]
+            worker = GLOBAL_VARS.WORKER[curr_grid]
             port   = GLOBAL_VARS.PORTS[worker]
-            print(f'{optimal_rsu}: tcp://{worker}:{port}')
+            print_log(f'Sent {t_id} to {curr_grid}: tcp://{worker}:{port}')
 
+            time.sleep(0.1)
             temp_sock = self.context.socket(zmq.DEALER)
             temp_sock.identity = encode(self._identity)
             temp_sock.connect(f'tcp://{worker}:{port}')
@@ -206,7 +227,6 @@ class WorkerHandler(mh.RouterMessageHandler):
             payload = json.dumps(data, cls = NpEncoder)
             temp_sock.send_multipart([b'receive_route_query', encode(payload)], zmq.NOBLOCK)
             temp_sock.close()
-
 
         payload = json.dumps(complete_payload, cls = NpEncoder)
         self._publisher_stream.send_multipart([b'client_result', encode(payload)], zmq.NOBLOCK)
@@ -222,45 +242,55 @@ class WorkerHandler(mh.RouterMessageHandler):
         Returns:
             [type]: [description]
         """
-        print("-> generate_partial_route()")
-        # print(f"Received payload: {payload}")
-        precision     = 10
-        bits_per_char = 2
-        geohash = GLOBAL_VARS.RSUS[self._identity]
+        print_log(f"->generate_partial_route()")
 
-        file_path = os.path.join(self.data_dir, f'9-p_{precision}-bpc_{bits_per_char}-G.pkl')
-        with open(file_path, 'rb') as handle:
-            nx_g = pickle.load(handle)
+        prev_data = self._r.hgetall(payload['t_id'])
+        if prev_data:
+            payload['prev_route'] = prev_data['prev_route'].split(",")
+            payload['prev_route'] = [int(n) for n in payload['prev_route']]
 
-        router = rg.Route_Generator(nx_g, precision, bits_per_char)
-        travel_time, route = router.find_route(payload)
-        # print(f'Route at {self._identity}: {route}')
-        print(f"Finished partial route.")
+        travel_time, route = self.router.find_route(payload)
+
+        # Notify all other RSUs (or just broker?) that the route is broken and should throw away
+        if route is None:
+            print_log(f"Route: {payload['t_id']} is broken")
+            end_point = payload['end_point']
+            temp_sock = self.context.socket(zmq.DEALER)
+            temp_sock.identity = encode(self._identity)
+            temp_sock.connect(f'tcp://{end_point}')
+
+            payload['task_type'] = GLOBAL_VARS.ROUTE_ERROR
+            ready_payload = json.dumps(payload, cls = NpEncoder)
+            temp_sock.send_multipart([b'receive_route_query', encode(ready_payload)], zmq.NOBLOCK)
+            temp_sock.close()
+            return False
+
+        print_log(f"partial route: {route}")
+        print_log(f"Finished partial route.")
 
         # TODO: Save the route and task? into some database/redis? maybe mongodB is better
         next_step = str(int(payload['step']) + 1).zfill(3)
+        curr_id = payload['t_id']
         new_id = "{}{}{}".format(payload['parsed_id'], next_step, payload['steps'])
         next_node = route[-1]
         
+        step = payload['step']
+        steps = payload['steps']
+        print(step, steps, curr_id)
         next_rsu = payload['gridB']
-        if next_rsu:
+        if int(step) != int(steps):
             worker = GLOBAL_VARS.WORKER[next_rsu]
             port   = GLOBAL_VARS.PORTS[worker]
-            print(f'Send next to: {next_rsu}: tcp://{worker}:{port}')
+            print_log(f'Send next to: {next_rsu}: tcp://{worker}:{port}')
 
             payload['next_node'] = next_node
             payload['t_id'] = new_id
             payload['route'] = route
 
-            step = payload['step']
-            steps = payload['steps']
             if step != steps:
                 payload['task_type'] = GLOBAL_VARS.PARTIAL_ROUTE_UPDATE
-            # elif step == steps:
-            #     payload['task_type'] = GLOBAL_VARS.PARTIAL_ROUTE_UPDATE
 
             curr_port   = GLOBAL_VARS.PORTS[self._identity]
-            # payload['end_point'] = f'{self._identity}:{curr_port}'
 
             temp_sock = self.context.socket(zmq.DEALER)
             temp_sock.identity = encode(self._identity)
@@ -270,44 +300,23 @@ class WorkerHandler(mh.RouterMessageHandler):
             temp_sock.send_multipart([b'receive_route_query', encode(ready_payload)], zmq.NOBLOCK)
             temp_sock.close()
 
-            time.sleep(0.1)
+        time.sleep(0.2)
 
-            # NOTE: Need to send the generated route to the end_point/broker
-            payload['task_type'] = GLOBAL_VARS.AGGREGATE_ROUTE
-            end_point = payload['end_point']
-            temp_sock = self.context.socket(zmq.DEALER)
-            temp_sock.identity = encode(self._identity)
-            temp_sock.connect(f'tcp://{end_point}')
+        # NOTE: Need to send the generated route to the end_point/broker
+        payload['task_type'] = GLOBAL_VARS.AGGREGATE_ROUTE
+        payload['t_id'] = curr_id
+        payload['route'] = route
+        payload['next_node'] = next_node
 
-            ready_payload = json.dumps(payload, cls = NpEncoder)
-            temp_sock.send_multipart([b'receive_route_query', encode(ready_payload)], zmq.NOBLOCK)
-            temp_sock.close()
+        end_point = payload['end_point']
+        temp_sock = self.context.socket(zmq.DEALER)
+        temp_sock.identity = encode(self._identity)
+        temp_sock.connect(f'tcp://{end_point}')
 
-        elif not next_rsu:
-            # NOTE: Need to send the generated route to the end_point/broker
-            payload['task_type'] = GLOBAL_VARS.AGGREGATE_ROUTE
-            payload['next_node'] = next_node
-            payload['t_id'] = new_id
-            payload['route'] = route
-
-            end_point = payload['end_point']
-            temp_sock = self.context.socket(zmq.DEALER)
-            temp_sock.identity = encode(self._identity)
-            temp_sock.connect(f'tcp://{end_point}')
-
-            ready_payload = json.dumps(payload, cls = NpEncoder)
-            temp_sock.send_multipart([b'receive_route_query', encode(ready_payload)], zmq.NOBLOCK)
-            temp_sock.close()
+        ready_payload = json.dumps(payload, cls = NpEncoder)
+        temp_sock.send_multipart([b'receive_route_query', encode(ready_payload)], zmq.NOBLOCK)
+        temp_sock.close()
         return True
-
-    def process_queries_in_queue(self):
-        while True:
-            task_count = self._r.llen(self._query_queue)
-            if task_count > 0:
-                query = self._r.lpop(self._query_queue)
-                payload = json.loads(query)
-                print('process_queries_in_queue:', payload)
-                time.sleep(10)
 
     def process_tasks_in_queue(self):
         # Should I not pop immediately, but only when the pipeline is "done"
@@ -316,9 +325,14 @@ class WorkerHandler(mh.RouterMessageHandler):
             if task_count > 0:
                 # print(f'{self._identity} has {task_count} tasks in queue.')
                 task = self._r.lpop(self._identity)
-
                 payload = json.loads(task)
                 task_type = payload['task_type']
+                
+                if task_type == GLOBAL_VARS.ROUTE_ERROR:
+                        self._publisher_stream.send_multipart([b'client_result', encode(self.queries[q_id])], zmq.NOBLOCK)
+                        print_log(f"Done with {q_id}")
+                        del self.queries[q_id]
+
                 if task_type == GLOBAL_VARS.FULL_ROUTE:
                     self.generate_route(payload)
 
@@ -341,9 +355,12 @@ class WorkerHandler(mh.RouterMessageHandler):
 
                 if task_type == GLOBAL_VARS.PARTIAL_ROUTE_UPDATE and payload['next_node']:
                     # FIXME: Just update the local dictionary "next_node_dict"
-                    # print('270', payload)
+                    print_log(f"{task_type}:{payload['next_node']}")
                     t_id = payload['t_id']
+                    r_str = ",".join([str(element) for element in payload['route']])
                     self.next_node_dict[t_id] = payload['next_node']
+                    self._r.hmset(t_id, {'next_node': payload['next_node'],
+                                         'prev_route': r_str})
                     pass
 
                 if task_type == GLOBAL_VARS.AGGREGATE_ROUTE:
@@ -362,16 +379,28 @@ class WorkerHandler(mh.RouterMessageHandler):
                     if len(route) == 0:
                         json_dict['route'] = payload['route']
                     else:
-                        json_dict['route'] = route + payload['route'][1:]
+                        first_node = payload['route'][0]
+                        last_index = len(route) - 1 - route[::-1].index(first_node)
+                        new_route = route[:last_index + 1]
+                        json_dict['route'] = new_route + payload['route'][1:]
                     
                     self.queries[q_id] = json.dumps(json_dict)
                     
                     if step == steps:
                         self._publisher_stream.send_multipart([b'client_result', encode(self.queries[q_id])], zmq.NOBLOCK)
-                        print(f"Done with {q_id}")
+
+                        # Logging
+                        temp = json.loads(self.queries[q_id])
+                        r_str = ",".join([str(element) for element in temp['route']])
+                        self._r.hmset(q_id, {'route': r_str, 'time_processed': time.time()})
+                        print(self._r.hgetall(q_id))
+                        print(self._r.keys())
+                        print_log(f"Done with {q_id}")
                         del self.queries[q_id]
                     
                         pass
+                    # else:
+                    #     self._r.rpush(self._identity, json.dumps(payload))
 
     '''
         SEC004: Service-specific Handler Functions

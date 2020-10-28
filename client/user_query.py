@@ -8,6 +8,7 @@ import numpy as np
 import os
 import pickle
 import uuid
+import geojson
 
 # https://stackoverflow.com/questions/39163872/zeromq-advantages-of-the-router-dealer-pattern
 
@@ -16,8 +17,7 @@ import uuid
 # https://stackoverflow.com/questions/37242217/access-docker-container-from-host-using-containers-name
 # https://stackoverflow.com/questions/35828487/docker-1-10-access-a-container-by-its-hostname-from-a-host-machine/
 host = 'localhost'
-port = 6000
-worker = 5
+worker = 0
 broker_port = 6000 + worker
 listener_port = 6010 + worker
 
@@ -25,20 +25,18 @@ decode = lambda x: x.decode('utf-8')
 encode = lambda x: x.encode('ascii')
 current_seconds_time = lambda: int(round(time.time()))
 
-QUERIES = 5
+QUERIES = 1
 
 def get_queries(x, y, number_of_queries):
-    p = 10
-    bpc = 2
-
     if not os.path.exists(os.path.join(os.getcwd(), 'data')):
         raise OSError("Must first download data, see README.md")
     data_dir = os.path.join(os.getcwd(), 'data')
 
-    file_path = os.path.join(data_dir, f'{p}-{bpc}-100-queries.pkl')
+    file_path = os.path.join(data_dir, 'OD_trips_3x3_df.pkl')
     task_list = pickle.load(open(file_path,'rb'))
-    task_list.drop(['og', 'r'], axis=1, inplace=True)
-    return task_list.sample(n = number_of_queries)
+    task_list.drop(['osg', 'r'], axis=1, inplace=True)
+    # return task_list.sample(n = number_of_queries)
+    return task_list[4:5]
 
 def send_query(row):
     context = zmq.Context()
@@ -72,11 +70,21 @@ def send_route_planning(row):
 
     timestamp = time.time()
     q_id = row.t_id
-    O = int(row.s)
-    D = int(row.d)
+    # These are Shapely.Points
+    O = row.s
+    D = row.d
+
+    # Separate into hour and minute for more granularity
+    t_h = int(row.t_h)
+    t_m = int(row.t_m)
+    h   = int(row.h)
     T = random.choice(range(0, 24))
     task_type = "ROUTE_PLANNING"
-    payload = json.dumps({"q_id": q_id, "time": timestamp, "s": O, "d": D, "t": T, "task_type": task_type})
+    payload = geojson.dumps({"q_id": q_id, 
+                             "time": timestamp, 
+                             "s": O, "d": D, 
+                             "t_h": t_h, "t_m": t_m, 
+                             "h": h, "task_type": task_type})
     receiver.send_multipart([b'receive_route_query', payload.encode('ascii')], flags = zmq.DONTWAIT)
     print(f"Sent route query {q_id} at {timestamp} with payload: {payload}\n")
 
@@ -118,17 +126,25 @@ def listener():
 
     should_continue = True
     messages_received = 0
+
     while should_continue:
         socks = dict(poller.poll())
         if socket_sub in socks and socks[socket_sub] == zmq.POLLIN:
             topic, message = socket_sub.recv_multipart()
             payload = json.loads(decode(message))
-            timestamp = payload['time']
-            route = payload['route']
+            timestamp = time.time()
+            inquiry_time = time.time()
             received = time.time()
+            if 'received' in payload:
+                timestamp = payload['received']
+                print(f'{messages_received}: Broker received {message}\nTime elapsed: {received - timestamp}\n')
+            elif 'time' in payload:
+                inquiry_time = payload['time']
+                print(f'{messages_received}: Broker returned {message}\nTime elapsed: {received - inquiry_time}\n')
+                break
             messages_received += 1
-            print(f'{messages_received}: Received {message}\nTime elapsed: {received - timestamp}\n')
             print()
+
 if __name__ == '__main__':
     Process(target=listener, args=()).start()
 

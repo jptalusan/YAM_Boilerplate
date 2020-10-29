@@ -70,19 +70,21 @@ class Route_Generator(object):
 
         print_log(f"->partial_route_executor()")
         
+        t = None
+        r = None
         if isinstance(node, Point) and isinstance(gridA, Point) and isinstance(gridB, int):
-            r = self.complete_route_single_grid(G, mod_G, task, speed_data)
+            t, r = self.complete_route_single_grid(G, mod_G, task, speed_data)
             
         elif isinstance(node, Point) and isinstance(gridA, int) and gridB is None:
-            r = self.partial_route_destination_grid(G, task, start_node, speed_data)
+            t, r = self.partial_route_destination_grid(G, task, start_node, speed_data)
                     
         elif isinstance(node, Point) and isinstance(gridA, int) and isinstance(gridB, int):
-            r = self.partial_route_start_grid(G, mod_G, task, speed_data)
+            t, r = self.partial_route_start_grid(G, mod_G, task, speed_data)
             
         elif isinstance(gridA, int) and isinstance(gridB, int):
-            r = self.partial_route_intermediate_grid(G, task, start_node, speed_data)
+            t, r = self.partial_route_intermediate_grid(G, task, start_node, speed_data)
 
-        return r
+        return t, r
 
     # Single grid task (1 task only)
     #  'node':Point, 'gridA': Point, 'gridB': geohash (int),
@@ -95,12 +97,11 @@ class Route_Generator(object):
         n_s = ox.get_nearest_node(mod_G, (start_loc.y, start_loc.x))
         n_d = ox.get_nearest_node(G, (end_loc.y, end_loc.x))
         try:
-    #         r = nx.shortest_path(G, n_s, n_d)
             # t, r = nx.dijkstra_path_timed(G, n_s, n_d, get_speed_data_at_time_dict, speed_data, time_key)
             t, r = nx.dijkstra_path_timed(G, n_s, n_d, self.get_random_speed)
             return t, r
         except:
-            pass
+            return None, None
 
     # if gridA is a point and gridB is a geohash
     def partial_route_start_grid(self, G, mod_G, task, speed_data=None):
@@ -133,12 +134,14 @@ class Route_Generator(object):
                 pass
             
         if not best_node:
-            return None
+            return None, None
         else:
-    #         r = nx.shortest_path(G, n_s, best_node)
-            # t, r = nx.dijkstra_path_timed(G, n_s, best_node, get_speed_data_at_time_dict, speed_data, time_key)
-            t, r = nx.dijkstra_path_timed(G, n_s, best_node, self.get_random_speed)
-            return t, r
+            try:
+                # t, r = nx.dijkstra_path_timed(G, n_s, best_node, get_speed_data_at_time_dict, speed_data, time_key)
+                t, r = nx.dijkstra_path_timed(G, n_s, best_node, self.get_random_speed)
+                return t, r
+            except:
+                return None, None
 
     # Needs information from the previous partial route
     # if gridA and gridB are both geohashes
@@ -163,13 +166,10 @@ class Route_Generator(object):
         candidate_nodes = candidate_nodes_u + candidate_nodes_v
 
         prev_route = task['prev_route']
-        print(f"prev_route: {prev_route}")
-        
         removed_nodes = -1
 
         while abs(removed_nodes) != (len(prev_route) + 1):
             start_node = prev_route[removed_nodes]
-            print("Start_node:", start_node)
             shortest_l = math.inf
             best_node = None
             for cn in candidate_nodes:

@@ -4,7 +4,7 @@ import random
 import string
 import csv
 import os
-from common.conf import GLOBAL_VARS
+from src.conf import GLOBAL_VARS
 
 def add_destination(topic, dest):
     if topic[-1] == '/':
@@ -36,3 +36,12 @@ def write_log(path, dict_entry):
 def get_worker_from_topic(topic):
     grid = topic.split("/")[-1]
     return GLOBAL_VARS.WORKER[grid]
+
+def convert_list_to_string(_list):
+    return ",".join([str(element) for element in _list])
+
+def convert_string_to_list(_string):
+    if _string == "" or not _string:
+        return []
+    route = _string.split(",")
+    return [int(r) for r in route]

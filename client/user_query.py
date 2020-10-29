@@ -25,6 +25,9 @@ decode = lambda x: x.decode('utf-8')
 encode = lambda x: x.encode('ascii')
 current_seconds_time = lambda: int(round(time.time()))
 
+ROUTE_ERROR = "ROUTE_ERROR"
+ROUTE_SUCCESS = "ROUTE_SUCCESS"
+
 QUERIES = 1
 
 def get_queries(x, y, number_of_queries):
@@ -36,7 +39,7 @@ def get_queries(x, y, number_of_queries):
     task_list = pickle.load(open(file_path,'rb'))
     task_list.drop(['osg', 'r'], axis=1, inplace=True)
     # return task_list.sample(n = number_of_queries)
-    return task_list[4:5]
+    return task_list[5:10]
 
 def send_query(row):
     context = zmq.Context()
@@ -55,7 +58,7 @@ def send_query(row):
     task_type = "FULL_ROUTE"
     payload = json.dumps({"q_id": q_id, "time": timestamp, "OD": (O, D), "task_type": task_type})
     receiver.send_multipart([b'receive_route_query', payload.encode('ascii')], flags = zmq.DONTWAIT)
-    print(f"Sent route query {q_id} at {timestamp} with payload: {payload}\n")
+    # print(f"Sent route query {q_id} at {timestamp} with payload: {payload}\n")
 
 def send_route_planning(row):
     time.sleep(0.5)
@@ -86,7 +89,7 @@ def send_route_planning(row):
                              "t_h": t_h, "t_m": t_m, 
                              "h": h, "task_type": task_type})
     receiver.send_multipart([b'receive_route_query', payload.encode('ascii')], flags = zmq.DONTWAIT)
-    print(f"Sent route query {q_id} at {timestamp} with payload: {payload}\n")
+    # print(f"Sent route query {q_id} at {timestamp} with payload: {payload}\n")
 
 def generate_route():
     context = zmq.Context()
@@ -132,16 +135,26 @@ def listener():
         if socket_sub in socks and socks[socket_sub] == zmq.POLLIN:
             topic, message = socket_sub.recv_multipart()
             payload = json.loads(decode(message))
-            timestamp = time.time()
-            inquiry_time = time.time()
-            received = time.time()
-            if 'received' in payload:
-                timestamp = payload['received']
-                print(f'{messages_received}: Broker received {message}\nTime elapsed: {received - timestamp}\n')
-            elif 'time' in payload:
-                inquiry_time = payload['time']
-                print(f'{messages_received}: Broker returned {message}\nTime elapsed: {received - inquiry_time}\n')
-                break
+            print(f"{messages_received}: {payload}")
+            # q_id = ""
+            # if 'q_id' in payload:
+            #     q_id = payload['q_id']
+            # else:
+            #     # print(payload)
+            #     pass
+                
+            # timestamp = time.time()
+            # time_processed = float(payload['time_processed'])
+            # time_inquired = float(payload['time_inquired'])
+
+            # result = payload['result']
+            # if result != ROUTE_ERROR:
+            #     print(f"{messages_received}: received {q_id} {result} in {(time_processed - time_inquired):.2f} s")
+            #     route = payload['route'].split(",")
+            #     route = [int(r) for r in route]
+            #     print(f"Route: {route}")
+            # else:
+            #     print(f"{messages_received}: received {q_id} {result} in {(time_processed - time_inquired):.2f} s")
             messages_received += 1
             print()
 

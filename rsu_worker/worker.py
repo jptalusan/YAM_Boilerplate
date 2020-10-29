@@ -56,9 +56,10 @@ def heartbeat(context):
     socket.send_multipart([b"heartbeat", socket.identity, encode(payload)])
     
 if __name__ == "__main__":
-    print("This worker is for network graph routing.")
-    print("Osmnx:", ox.__version__)
-    print("NetworkX:", nx.__version__)
+    print(f"This Worker-{ident} is for distributed routing.")
+    print("osmnx:", ox.__version__)
+    print("networkx:", nx.__version__)
+
     context = zmq.Context()
     heartbeat(context)
     wp.WorkerProcess(bind_addr=('*', ROUTER_PORT), 

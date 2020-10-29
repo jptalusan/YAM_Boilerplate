@@ -39,7 +39,8 @@ def get_queries(x, y, number_of_queries):
     task_list = pickle.load(open(file_path,'rb'))
     task_list.drop(['osg', 'r'], axis=1, inplace=True)
     # return task_list.sample(n = number_of_queries)
-    return task_list[5:10]
+    return task_list[0:30]
+    # return task_list.loc[task_list['t_id'] == '438be098']
 
 def send_query(row):
     context = zmq.Context()
@@ -112,7 +113,7 @@ def generate_route():
         # print(f'Time elapsed: {received - timestamp}')
         # print()
 
-def listener():
+def listener(q_ids):
     host = 'localhost'
     port = listener_port
 
@@ -128,41 +129,50 @@ def listener():
     poller.register(socket_sub, zmq.POLLIN)
 
     should_continue = True
-    messages_received = 0
+    messages_received = 1
 
     while should_continue:
         socks = dict(poller.poll())
         if socket_sub in socks and socks[socket_sub] == zmq.POLLIN:
             topic, message = socket_sub.recv_multipart()
             payload = json.loads(decode(message))
-            print(f"{messages_received}: {payload}")
-            # q_id = ""
-            # if 'q_id' in payload:
-            #     q_id = payload['q_id']
-            # else:
-            #     # print(payload)
-            #     pass
+            # print(f"{messages_received}: {payload}")
+            q_id = ""
+            if 'q_id' in payload:
+                q_id = payload['q_id']
+                q_ids.remove(q_id)
+                print(f"Remaining: {q_ids}")
+            else:
+                # print(payload)
+                pass
                 
-            # timestamp = time.time()
-            # time_processed = float(payload['time_processed'])
-            # time_inquired = float(payload['time_inquired'])
+            timestamp = time.time()
+            time_processed = float(payload['time_processed'])
+            time_inquired = float(payload['time_inquired'])
 
-            # result = payload['result']
-            # if result != ROUTE_ERROR:
-            #     print(f"{messages_received}: received {q_id} {result} in {(time_processed - time_inquired):.2f} s")
-            #     route = payload['route'].split(",")
-            #     route = [int(r) for r in route]
-            #     print(f"Route: {route}")
-            # else:
-            #     print(f"{messages_received}: received {q_id} {result} in {(time_processed - time_inquired):.2f} s")
+            result = payload['result']
+            count = str(messages_received).zfill(2)
+            if result != ROUTE_ERROR:
+                print(f"{count}: received {q_id} {result} in {(time_processed - time_inquired):.2f} s")
+                route = payload['route'].split(",")
+                route = [int(r) for r in route]
+                # print(f"Route: {route}")
+            else:
+                print(f"{count}: received {q_id} {result} in {(time_processed - time_inquired):.2f} s")
             messages_received += 1
-            print()
+            # print()
 
 if __name__ == '__main__':
-    Process(target=listener, args=()).start()
 
     df = get_queries(5, 5, QUERIES)
-    print(df.head())
+
+    q_ids = list(df.t_id)
+    [print(f"{i + 1}:{_id}") for i, _id in enumerate(list(df.t_id))]
+    print()
+
+
+    Process(target=listener, args=(q_ids,)).start()
+
     # df.apply(send_query, axis=1)
     df.apply(send_route_planning, axis=1)
     # generate_route()

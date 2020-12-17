@@ -12,7 +12,7 @@ RUN pip3 uninstall osmnx -y
 RUN pip3 install osmnx
 
 RUN rm -rf networkx
-RUN git clone https://linusmotu:Dirknowitzki4!@github.com/linusmotu/networkx.git
+RUN git clone https://[USERNAME]:[PASSWORD]@github.com/linusmotu/networkx.git
 WORKDIR /usr/src/app/networkx
 RUN pip3 install .
 
